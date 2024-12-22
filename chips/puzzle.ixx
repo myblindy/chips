@@ -15,10 +15,27 @@ export struct Puzzle
 {
 	function<shared_ptr<VM>()> make_vm;
 	Element description_element;
-	vector<function<bool(const VM& vm)>> checks;
 
-	Puzzle(const function<shared_ptr<VM>()>& make_vm, const string& description_markup, const vector<function<bool(const VM& vm)>>& checks)
-		: make_vm(make_vm), checks(checks)
+	Puzzle(const function<shared_ptr<VM>()>& make_vm, const string& description_markup,
+		const vector<VM::TCheck>& checks)
+	{
+		SetupDescription(description_markup);
+
+		internal_make_vm = make_vm;
+		this->checks = checks;
+		this->make_vm = [&]() -> shared_ptr<VM>
+			{
+				auto vm = internal_make_vm();
+				for (auto&& check : this->checks)
+					vm->AddCheck(check);
+				return vm;
+			};
+	}
+
+private:
+	vector<VM::TCheck> checks;
+	function<shared_ptr<VM>()> internal_make_vm;
+	void SetupDescription(const std::string& description_markup)
 	{
 		Elements vbox_elements;
 		Elements hbox_elements;

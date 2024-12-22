@@ -49,11 +49,18 @@ export struct VMInstruction
 
 export class VM
 {
+public:
+	using TCheck = function<bool(const VM& vm)>;
+
+private:
 	vector<TRegister> registers;
 	vector<TMemory> memory, saved_memory;
 	unordered_map<size_t, const VMInstruction> instructions;
 
 	size_t IndexFromOpcode(const vector<TMemory>& opcode) const;
+
+	vector<TCheck> checks;
+	int check_index;
 
 	TRegister ip{};
 	atomic<VMState> state = VMState::Edit;
@@ -61,9 +68,16 @@ export class VM
 	SDL_TimerID timer{};
 
 	bool ExecuteNextInstruction();
+	bool RunChecks();
 
 	vector<function<void(const VM&)>> dirty_callbacks;
 	void TriggerDirtyCallbacks() const { for (auto&& callback : dirty_callbacks) callback(*this); }
+
+	vector<function<void(const VM&, const string_view)>> error_callbacks;
+	void TriggerErrorCallbacks(const string_view message) const { for (auto&& callback : error_callbacks) callback(*this, message); }
+
+	vector<function<void(const VM&)>> success_callbacks;
+	void TriggerSuccessCallbacks() const { for (auto&& callback : success_callbacks) callback(*this); }
 
 public:
 	VM(int registers, size_t memory_size, initializer_list<const VMInstruction> instructions)
@@ -93,6 +107,8 @@ public:
 	const auto IP() const { return ip; }
 	void IP(const TRegister value) { ip = value; TriggerDirtyCallbacks(); }
 
+	void AddCheck(const TCheck& check) { checks.push_back(check); }
+
 	void Run();
 	void Step();
 	void Pause();
@@ -101,6 +117,8 @@ public:
 	optional<string> DecodeInstruction(size_t memory_index) const;
 
 	void OnDirty(function<void(const VM&)> callback) { dirty_callbacks.push_back(callback); }
+	void OnError(function<void(const VM&, const string_view)> callback) { error_callbacks.push_back(callback); }
+	void OnSuccess(function<void(const VM&)> callback) { success_callbacks.push_back(callback); }
 };
 
 inline size_t VM::IndexFromOpcode(const vector<uint8_t>& opcode) const
@@ -120,6 +138,7 @@ void VM::Run()
 	{
 		saved_memory = memory;
 		ip = 0;
+		check_index = 0;
 	}
 
 	state = VMState::Running;
@@ -139,6 +158,7 @@ void VM::Step()
 	{
 		saved_memory = memory;
 		ip = 0;
+		check_index = 0;
 	}
 
 	state = VMState::Paused;
@@ -149,31 +169,59 @@ void VM::Pause()
 {
 	state = VMState::Paused;
 
-	assert(timer);
-	SDL_RemoveTimer(timer);
-	timer = 0;
+	if (timer)
+	{
+		SDL_RemoveTimer(timer);
+		timer = 0;
+	}
 }
 
 void VM::Stop()
 {
 	memory = saved_memory;
 	state = VMState::Edit;
+	TriggerErrorCallbacks({});
 
-	assert(timer);
-	SDL_RemoveTimer(timer);
-	timer = 0;
+	if (timer)
+	{
+		SDL_RemoveTimer(timer);
+		timer = 0;
+	}
 }
 
 inline bool VM::ExecuteNextInstruction()
 {
+#define ERROR_RETURN(msg) do{ TriggerErrorCallbacks(msg); return false; }while(0)
 	const auto ip = static_cast<size_t>(this->ip);
 	if (ip >= memory.size())
-		return false;
-	auto&& instruction = instructions[(size_t)Memory(ip)];
+		ERROR_RETURN(format("IP ({:#04x}) is out of bounds ({:#04x}).", ip, memory.size()));
+	auto it = instructions.find((size_t)Memory(ip));
+	if (it == instructions.end())
+		ERROR_RETURN("Invalid instruction opcode.");
+	const auto& instruction = it->second;
 	if (!instruction.Execute(*this, ip))
-		return false;
+		ERROR_RETURN("Internal instruction error.");
+
+	if (RunChecks())
+	{
+		Stop();
+		TriggerSuccessCallbacks();
+		return true;
+	}
+
 	this->ip += static_cast<TRegister>(instruction.OpcodeLength());
 	return true;
+#undef ERROR_RETURN
+}
+
+inline bool VM::RunChecks()
+{
+	if (checks.empty()) return false;
+
+	if (checks[check_index](*this))
+		if (++check_index == checks.size())
+			return true;
+	return false;
 }
 
 inline optional<string> VM::DecodeInstruction(size_t memory_index) const
@@ -218,7 +266,7 @@ inline bool VMInstruction::Execute(VM& vm, size_t memory_index) const
 			}, operand);
 	}
 
-	if (!execute_internal(*this, vm, memory_index, operand_values))
+	if (!execute_internal || !execute_internal(*this, vm, memory_index, operand_values))
 		return false;
 	return true;
 }

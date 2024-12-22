@@ -15,6 +15,12 @@ int main()
 	auto&& puzzle = Puzzle0101;
 	auto vm = puzzle.make_vm();
 
+	string error_message;
+	vm->OnError([&](const VM&, const string_view message) { error_message = message; });
+
+	bool success = false;
+	vm->OnSuccess([&](const VM&) { success = true; });
+
 	// LDR 0x08
 	vm->Memory(0x00, 0x00);
 	vm->Memory(0x01, 0x08);
@@ -43,6 +49,12 @@ int main()
 
 	auto hex_editor_window_contents = Container::Vertical({
 		hex_editor | flex,
+		Renderer([] { return separator(); }) | Maybe([&] { return !error_message.empty(); }),
+		Container::Horizontal({
+			Button("x", [&] { error_message.clear(); }, ButtonOption::Ascii()),
+			Renderer([] { return separator(); }),
+			Renderer([&] { return text(error_message) | color(Color::Red) | blink; }),
+			}) | Maybe([&] { return !error_message.empty(); }),
 		Renderer([] { return separator(); }),
 		Container::Horizontal({
 			memory_details_view,
@@ -69,6 +81,24 @@ int main()
 			Renderer([&] { return puzzle.description_element | vcenter; }),
 			}),
 		});
+
+	auto sucess_modal_window_actions = Container::Horizontal({
+		Button("OK", [&] { success = false; }, ButtonOption::Animated(Color::LightGreen)),
+		});
+
+	auto success_modal_window = Renderer(sucess_modal_window_actions, [&] { return window(
+		text("Level completed!") | hcenter | bold,
+		vbox({
+			text("Details NYI"),
+			text("Details NYI"),
+			text("Details NYI"),
+			text("Details NYI"),
+			separator(),
+			sucess_modal_window_actions->Render() | center,
+			}));
+		}) | size(WIDTH, GREATER_THAN, 30);
+
+	shell |= Modal(success_modal_window, &success);
 
 	screen.Loop(shell);
 }
