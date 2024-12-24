@@ -13,29 +13,50 @@ using namespace ftxui;
 
 export struct Puzzle
 {
-	function<shared_ptr<VM>()> make_vm;
+	function<vector<shared_ptr<VM>>()> make;
 	Element description_element;
 
-	Puzzle(const function<shared_ptr<VM>()>& make_vm, const string& description_markup,
+	Puzzle(const vector<VM::TMakeNetwork>& make_networks,
+		const string& description_markup,
 		const vector<VM::TCheck>& checks)
 	{
-		SetupDescription(description_markup);
+		description_element = BuildMarkupElement(description_markup);
 
-		internal_make_vm = make_vm;
+		internal_make_networks = make_networks;
 		this->checks = checks;
-		this->make_vm = [&]() -> shared_ptr<VM>
+		this->make = [&]()
 			{
-				auto vm = internal_make_vm();
-				for (auto&& check : this->checks)
-					vm->AddCheck(check);
-				return vm;
+				vector<shared_ptr<VM>> result;
+
+				auto elements_count_range = this->internal_make_networks
+					| ranges::views::transform([](auto&& elem) { return elem.size(); });
+				result.reserve(ranges::fold_left_first(elements_count_range, plus{}).value_or(0));
+
+				return this->internal_make_networks
+					| ranges::views::enumerate
+					| ranges::views::transform([](auto&& make_networks_w)
+						{
+							auto network_index = static_cast<uint8_t>(get<0>(make_networks_w));
+							return get<1>(make_networks_w)
+								| ranges::views::enumerate
+								| ranges::views::transform([=](auto&& make_network_w)
+									{
+										auto vm = get<1>(get<1>(make_network_w))();
+										vm->Name(get<0>(get<1>(make_network_w)));
+										vm->IndexInNetwork(static_cast<uint8_t>(get<0>(make_network_w)));
+										vm->NetworkIndex(network_index);
+										return vm;
+									});
+						})
+					| ranges::views::join
+					| ranges::to<vector<shared_ptr<VM>>>();
 			};
 	}
 
 private:
 	vector<VM::TCheck> checks;
-	function<shared_ptr<VM>()> internal_make_vm;
-	void SetupDescription(const std::string& description_markup)
+	vector<VM::TMakeNetwork> internal_make_networks;
+	Element BuildMarkupElement(const std::string& description_markup)
 	{
 		Elements vbox_elements;
 		Elements hbox_elements;
@@ -80,6 +101,6 @@ private:
 			}
 		add_entry(true);
 
-		description_element = vbox(vbox_elements);
+		return vbox(vbox_elements);
 	}
 };

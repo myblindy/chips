@@ -50,11 +50,17 @@ export struct VMInstruction
 export class VM
 {
 public:
+	using TNetwork = vector<shared_ptr<VM>>;
+	using TMakeNetwork = vector<tuple<string, function<shared_ptr<VM>()>>>;
 	using TCheck = function<bool(const VM& vm)>;
 
 private:
+	string name;
+	uint8_t network_index{};
+	uint8_t index_in_network{};
 	vector<TRegister> registers;
 	vector<TMemory> memory, saved_memory;
+	string error_message;
 	unordered_map<size_t, const VMInstruction> instructions;
 
 	size_t IndexFromOpcode(const vector<TMemory>& opcode) const;
@@ -73,9 +79,6 @@ private:
 	vector<function<void(const VM&)>> dirty_callbacks;
 	void TriggerDirtyCallbacks() const { for (auto&& callback : dirty_callbacks) callback(*this); }
 
-	vector<function<void(const VM&, const string_view)>> error_callbacks;
-	void TriggerErrorCallbacks(const string_view message) const { for (auto&& callback : error_callbacks) callback(*this, message); }
-
 	vector<function<void(const VM&)>> success_callbacks;
 	void TriggerSuccessCallbacks() const { for (auto&& callback : success_callbacks) callback(*this); }
 
@@ -86,6 +89,17 @@ public:
 		for (auto&& instruction : instructions)
 			this->instructions.insert({ IndexFromOpcode(instruction.base_opcode), instruction });
 	}
+
+	auto Name() const { return name; }
+	void Name(const string_view value) { name = value; TriggerDirtyCallbacks(); }
+
+	auto NetworkIndex() const { return network_index; }
+	void NetworkIndex(uint8_t value) { network_index = value; TriggerDirtyCallbacks(); }
+
+	auto IndexInNetwork() const { return index_in_network; }
+	void IndexInNetwork(uint8_t value) { index_in_network = value; TriggerDirtyCallbacks(); }
+
+	string ErrorMessage() const { return error_message; }
 
 	void Memory(size_t index, const TMemory value) { memory[index] = value; TriggerDirtyCallbacks(); }
 
@@ -117,7 +131,6 @@ public:
 	optional<string> DecodeInstruction(size_t memory_index) const;
 
 	void OnDirty(function<void(const VM&)> callback) { dirty_callbacks.push_back(callback); }
-	void OnError(function<void(const VM&, const string_view)> callback) { error_callbacks.push_back(callback); }
 	void OnSuccess(function<void(const VM&)> callback) { success_callbacks.push_back(callback); }
 };
 
@@ -180,7 +193,7 @@ void VM::Stop()
 {
 	memory = saved_memory;
 	state = VMState::Edit;
-	TriggerErrorCallbacks({});
+	error_message.clear();
 
 	if (timer)
 	{
@@ -191,7 +204,7 @@ void VM::Stop()
 
 inline bool VM::ExecuteNextInstruction()
 {
-#define ERROR_RETURN(msg) do{ TriggerErrorCallbacks(msg); return false; }while(0)
+#define ERROR_RETURN(msg) do{ error_message = (msg); return false; }while(0)
 	const auto ip = static_cast<size_t>(this->ip);
 	if (ip >= memory.size())
 		ERROR_RETURN(format("IP ({:#04x}) is out of bounds ({:#04x}).", ip, memory.size()));
