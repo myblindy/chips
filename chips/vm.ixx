@@ -51,8 +51,7 @@ export class VM
 {
 public:
 	using TNetwork = vector<shared_ptr<VM>>;
-	using TMakeNetwork = vector<tuple<string, function<shared_ptr<VM>()>>>;
-	using TCheck = function<bool(const VM& vm)>;
+	using TMakeNetwork = vector<tuple<string, function<shared_ptr<VM>()>, vector<uint8_t>>>;
 
 private:
 	string name;
@@ -65,16 +64,12 @@ private:
 
 	size_t IndexFromOpcode(const vector<TMemory>& opcode) const;
 
-	vector<TCheck> checks;
-	int check_index;
-
 	TRegister ip{};
 	atomic<VMState> state = VMState::Edit;
 
 	SDL_TimerID timer{};
 
 	bool ExecuteNextInstruction();
-	bool RunChecks();
 
 	vector<function<void(const VM&)>> dirty_callbacks;
 	void TriggerDirtyCallbacks() const { for (auto&& callback : dirty_callbacks) callback(*this); }
@@ -121,8 +116,6 @@ public:
 	const auto IP() const { return ip; }
 	void IP(const TRegister value) { ip = value; TriggerDirtyCallbacks(); }
 
-	void AddCheck(const TCheck& check) { checks.push_back(check); }
-
 	void Run();
 	void Step();
 	void Pause();
@@ -151,7 +144,6 @@ void VM::Run()
 	{
 		saved_memory = memory;
 		ip = 0;
-		check_index = 0;
 	}
 
 	state = VMState::Running;
@@ -171,7 +163,6 @@ void VM::Step()
 	{
 		saved_memory = memory;
 		ip = 0;
-		check_index = 0;
 	}
 
 	state = VMState::Paused;
@@ -215,26 +206,9 @@ inline bool VM::ExecuteNextInstruction()
 	if (!instruction.Execute(*this, ip))
 		ERROR_RETURN("Internal instruction error.");
 
-	if (RunChecks())
-	{
-		Stop();
-		TriggerSuccessCallbacks();
-		return true;
-	}
-
 	this->ip += static_cast<TRegister>(instruction.OpcodeLength());
 	return true;
 #undef ERROR_RETURN
-}
-
-inline bool VM::RunChecks()
-{
-	if (checks.empty()) return false;
-
-	if (checks[check_index](*this))
-		if (++check_index == checks.size())
-			return true;
-	return false;
 }
 
 inline optional<string> VM::DecodeInstruction(size_t memory_index) const

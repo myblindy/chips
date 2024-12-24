@@ -39,8 +39,13 @@ static Component MakeVmContainer(shared_ptr<VM> vm, bool& success, ScreenInterac
 
 	auto hex_editor_window = Renderer(hex_editor_window_contents, [hex_editor_window_contents, &vm]
 		{
-			auto title_element = text(format("Hex Editor for {} {}/{} ({} bytes)",
-				vm->Name(), vm->NetworkIndex(), vm->IndexInNetwork(), vm->MemorySize()));
+			auto title_element = hbox({
+				text("Hex Editor for "),
+				text(format("{}/{} {}", vm->NetworkIndex(), vm->IndexInNetwork(), vm->Name())) | color(Color::Aquamarine1),
+				text(" ("),
+				text(format("{}b", vm->MemorySize())) | color(Color::Aquamarine1),
+				text(")"),
+				});
 			return window(title_element | hcenter | bold,
 				hex_editor_window_contents->Render());
 		});
@@ -51,38 +56,19 @@ static Component MakeVmContainer(shared_ptr<VM> vm, bool& success, ScreenInterac
 int main()
 {
 	bool success = false;
-	auto&& puzzle = Puzzles[0];
-	auto vms = puzzle.make();
-
-	auto&& vm = vms[0];
-
-	// LDR 0x08
-	vm->Memory(0x00, 0x00);
-	vm->Memory(0x01, 0x08);
-
-	// ADDI8 0x01
-	vm->Memory(0x02, 0x03);
-	vm->Memory(0x03, 0x01);
-
-	// STR 0x0A
-	vm->Memory(0x04, 0x02);
-	vm->Memory(0x05, 0x0A);
-
-	// JMP 0x02
-	vm->Memory(0x06, 0x04);
-	vm->Memory(0x07, 0x02);
-
-	vm->Memory(0x08, 0xEF);
+	auto puzzle = Puzzles[0].make();
 
 	auto screen = ScreenInteractive::Fullscreen();
 
 	int selected_vm = 0;
 	Components vm_tab_components;
-	for (auto& vm : vms)
+	for (auto& vm : puzzle.VMs())
 		vm_tab_components.push_back(MakeVmContainer(vm, success, screen));
 	auto vm_tab_contents = Container::Tab(vm_tab_components, &selected_vm) | flex;
 
-	auto vm_tab_names = vms | ranges::views::transform([](const auto& vm) { return vm->Name(); }) | ranges::to<vector<string>>();
+	auto vm_tab_names = puzzle.VMs() | ranges::views::transform([](const auto& vm) {
+		return format("{}/{} {}", vm->NetworkIndex(), vm->IndexInNetwork(), vm->Name());
+		}) | ranges::to<vector<string>>();
 	auto vm_tab = Toggle(&vm_tab_names, &selected_vm);
 
 	auto shell = Container::Vertical({
@@ -96,12 +82,12 @@ int main()
 			}) | flex,
 		Renderer([] { return separatorHeavy(); }),
 		Container::Horizontal({
-			Button("Run", [&] { vm->Run(); }, ButtonOption::Animated(Color::LightGreen)) | Maybe([&] { return vm->State() != VMState::Running; }),
-			Button("Pause", [&] { vm->Pause(); }, ButtonOption::Animated(Color::LightGreen)) | Maybe([&] { return vm->State() == VMState::Running; }),
-			Button("Step", [&] { vm->Step(); }, ButtonOption::Animated(Color::Aquamarine1)) | Maybe([&] { return vm->State() != VMState::Running; }),
-			Button("Stop", [&] { vm->Stop();  }, ButtonOption::Animated(Color::Red)) | Maybe([&] { return vm->State() != VMState::Edit; }),
+			Button("Run", [&] { puzzle.Run(); }, ButtonOption::Animated(Color::LightGreen)) | Maybe([&] { return puzzle.State() != VMState::Running; }),
+			Button("Pause", [&] { puzzle.Pause(); }, ButtonOption::Animated(Color::LightGreen)) | Maybe([&] { return puzzle.State() == VMState::Running; }),
+			Button("Step", [&] { puzzle.Step(); }, ButtonOption::Animated(Color::Aquamarine1)) | Maybe([&] { return puzzle.State() != VMState::Running; }),
+			Button("Stop", [&] { puzzle.Stop(); }, ButtonOption::Animated(Color::Red)) | Maybe([&] { return puzzle.State() != VMState::Edit; }),
 			Renderer([] { return separatorHeavy(); }),
-			Renderer([&] { return puzzle.description_element | vcenter; }),
+			Renderer([&] { return puzzle.PuzzleTemplate().description_element | vcenter; }),
 			}),
 		});
 
@@ -124,4 +110,6 @@ int main()
 	shell |= Modal(success_modal_window, &success);
 
 	screen.Loop(shell);
+
+	return 0;
 }
