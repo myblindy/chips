@@ -17,6 +17,9 @@ template<class... Ts> struct overload : Ts... { using Ts::operator()...; };
 
 #include "eventpp/eventqueue.h"
 
+using TNetworkIndex = uint8_t;
+using TIndexInNetwork = uint8_t;
+
 enum class VMEventType
 {
 	Dirty,
@@ -31,3 +34,9 @@ enum class PuzzleEventType
 };
 struct PuzzleInstance;
 inline eventpp::EventQueue<PuzzleEventType, void(PuzzleInstance* puzzle)> PuzzleEventQueue;
+
+enum class GlobalEventType 
+{
+	LoadNewPuzzle,
+};
+inline eventpp::EventQueue<GlobalEventType, void()> GlobalEventQueue;

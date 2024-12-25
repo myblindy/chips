@@ -55,24 +55,30 @@ public:
 
 private:
 	string name;
-	uint8_t network_index{};
-	uint8_t index_in_network{};
+	TNetworkIndex network_index{};
+	TIndexInNetwork index_in_network{};
 	vector<TRegister> registers;
 	vector<TMemory> memory, saved_memory;
 	string error_message;
+	unordered_map<TNetworkIndex, unordered_map<TIndexInNetwork, shared_ptr<VM>>> network_vms;
 	unordered_map<size_t, const VMInstruction> instructions;
+	unordered_map<TIndexInNetwork, optional<TRegister>> incoming_data;
 
 	size_t IndexFromOpcode(const vector<TMemory>& opcode) const;
 
 	TRegister ip{};
 	atomic<VMState> state = VMState::Edit;
 
+	struct {
+		bool zero : 1;
+	} flags;
+
 	SDL_TimerID timer{};
 
 	bool ExecuteNextInstruction();
 
 public:
-	VM(int registers, size_t memory_size, initializer_list<const VMInstruction> instructions)
+	VM(int registers, size_t memory_size, const vector<VMInstruction>& instructions = {})
 		: registers(registers), memory(memory_size), saved_memory(memory_size)
 	{
 		for (auto&& instruction : instructions)
@@ -83,10 +89,44 @@ public:
 	void Name(const string_view value) { name = value; VMEventQueue.enqueue(VMEventType::Dirty, this); }
 
 	auto NetworkIndex() const { return network_index; }
-	void NetworkIndex(uint8_t value) { network_index = value; VMEventQueue.enqueue(VMEventType::Dirty, this); }
+	void NetworkIndex(TNetworkIndex value) { network_index = value; VMEventQueue.enqueue(VMEventType::Dirty, this); }
 
 	auto IndexInNetwork() const { return index_in_network; }
-	void IndexInNetwork(uint8_t value) { index_in_network = value; VMEventQueue.enqueue(VMEventType::Dirty, this); }
+	void IndexInNetwork(TIndexInNetwork value) { index_in_network = value; VMEventQueue.enqueue(VMEventType::Dirty, this); }
+
+	void AddNetworkedVM(TNetworkIndex network_index, TIndexInNetwork index_in_network, shared_ptr<VM> vm)
+	{
+		network_vms[network_index][index_in_network] = vm;
+	}
+	optional<shared_ptr<VM>> NetworkVM(TNetworkIndex network_index, TIndexInNetwork index_in_network) const
+	{
+		auto it = network_vms.find(network_index);
+		if (it == network_vms.end())
+			return nullopt;
+		auto it2 = it->second.find(index_in_network);
+		if (it2 == it->second.end())
+			return nullopt;
+		return it2->second;
+	}
+	optional<shared_ptr<VM>> NetworkVM(TIndexInNetwork index_in_network) const
+	{
+		return NetworkVM(network_index, index_in_network);
+	}
+
+	bool IncomingData(TIndexInNetwork index_in_network, optional<TRegister> value, bool force = false)
+	{
+		if (!force && incoming_data[index_in_network].has_value())
+			return false;
+		incoming_data[index_in_network] = value;
+		return true;
+	}
+	optional<TRegister> IncomingData(TIndexInNetwork index_in_network) const
+	{
+		auto it = incoming_data.find(index_in_network);
+		if (it == incoming_data.end())
+			return nullopt;
+		return it->second;
+	}
 
 	string ErrorMessage() const { return error_message; }
 
@@ -104,6 +144,9 @@ public:
 	auto RegisterName(int index) const { return format("R{}", index); }
 
 	const auto RegisterCount() const { return registers.size(); }
+
+	const auto FlagZero() const { return flags.zero; }
+	void FlagZero(bool value) { flags.zero = value; VMEventQueue.enqueue(VMEventType::Dirty, this); }
 
 	const VMState State() const { return state; }
 
@@ -293,9 +336,9 @@ inline optional<string> VMInstruction::Decode(const VM& vm, size_t memory_index)
 	return result;
 }
 
-export VMInstruction MakeLoadRegisterSingleAddressInstruction(initializer_list<uint8_t> opcode)
+export VMInstruction MakeLoadRegister0AddressInstruction(initializer_list<uint8_t> opcode)
 {
-	return { "LDR", vector<uint8_t>{opcode}, {Addr{}},
+	return { "LDR0", vector<uint8_t>{opcode}, {Addr{}},
 		[&](const VMInstruction& self, VM& vm, size_t memory_index, const vector<size_t>& operand_values) -> bool
 		{
 			if (vm.RegisterCount() < 1) return false;
@@ -308,9 +351,24 @@ export VMInstruction MakeLoadRegisterSingleAddressInstruction(initializer_list<u
 	};
 }
 
-export VMInstruction MakeLoadRegisterSingleImm8Instruction(initializer_list<uint8_t> opcode)
+export VMInstruction MakeLoadRegister1AddressInstruction(initializer_list<uint8_t> opcode)
 {
-	return { "LDRI8", vector<uint8_t>{opcode}, {Imm<1>{}},
+	return { "LDR1", vector<uint8_t>{opcode}, {Addr{}},
+		[&](const VMInstruction& self, VM& vm, size_t memory_index, const vector<size_t>& operand_values) -> bool
+		{
+			if (vm.RegisterCount() < 2) return false;
+			const auto address = operand_values[0];
+			if (address >= vm.MemorySize()) return false;
+
+			vm.Register(1, vm.Memory(address));
+			return true;
+		}
+	};
+}
+
+export VMInstruction MakeLoadRegister0Imm8Instruction(initializer_list<uint8_t> opcode)
+{
+	return { "LDR0I8", vector<uint8_t>{opcode}, {Imm<1>{}},
 		[&](const VMInstruction& self, VM& vm, size_t memory_index, const vector<size_t>& operand_values) -> bool
 		{
 			if (vm.RegisterCount() < 1) return false;
@@ -320,7 +378,19 @@ export VMInstruction MakeLoadRegisterSingleImm8Instruction(initializer_list<uint
 	};
 }
 
-export VMInstruction MakeStoreRegisterSingleAddressInstruction(initializer_list<uint8_t> opcode)
+export VMInstruction MakeLoadRegister1Imm8Instruction(initializer_list<uint8_t> opcode)
+{
+	return { "LDR1I8", vector<uint8_t>{opcode}, {Imm<1>{}},
+		[&](const VMInstruction& self, VM& vm, size_t memory_index, const vector<size_t>& operand_values) -> bool
+		{
+			if (vm.RegisterCount() < 2) return false;
+			vm.Register(1, static_cast<TRegister>(operand_values[0]));
+			return true;
+		}
+	};
+}
+
+export VMInstruction MakeStoreRegister0AddressInstruction(initializer_list<uint8_t> opcode)
 {
 	return { "STR", vector<uint8_t>{opcode}, {Addr{}},
 		[&](const VMInstruction& self, VM& vm, size_t memory_index, const vector<size_t>& operand_values) -> bool
@@ -335,7 +405,22 @@ export VMInstruction MakeStoreRegisterSingleAddressInstruction(initializer_list<
 	};
 }
 
-export VMInstruction MakeAddRegisterImm8Instruction(initializer_list<uint8_t> opcode)
+export VMInstruction MakeStoreRegister1AddressInstruction(initializer_list<uint8_t> opcode)
+{
+	return { "STR", vector<uint8_t>{opcode}, {Addr{}},
+		[&](const VMInstruction& self, VM& vm, size_t memory_index, const vector<size_t>& operand_values) -> bool
+		{
+			if (vm.RegisterCount() < 2) return false;
+			const auto address = operand_values[0];
+			if (address >= vm.MemorySize()) return false;
+
+			vm.Memory(address, vm.Register(1));
+			return true;
+		}
+	};
+}
+
+export VMInstruction MakeAddRegister0Imm8Instruction(initializer_list<uint8_t> opcode)
 {
 	return { "ADDI8", vector<uint8_t>{opcode}, {Imm<1>{}},
 		[&](const VMInstruction& self, VM& vm, size_t memory_index, const vector<size_t>& operand_values) -> bool
@@ -353,6 +438,61 @@ export VMInstruction MakeJmpImm8Instruction(initializer_list<uint8_t> opcode)
 		[&](const VMInstruction& self, VM& vm, size_t memory_index, const vector<size_t>& operand_values) -> bool
 		{
 			vm.IP(static_cast<TRegister>(operand_values[0]) - 2);
+			return true;
+		}
+	};
+}
+
+export VMInstruction MakeJmpNotZeroImm8Instruction(initializer_list<uint8_t> opcode)
+{
+	return { "JMPNZI8", vector<uint8_t>{opcode}, {Imm<1>{}},
+		[&](const VMInstruction& self, VM& vm, size_t memory_index, const vector<size_t>& operand_values) -> bool
+		{
+			if (!vm.FlagZero())
+				vm.IP(static_cast<TRegister>(operand_values[0]) - 2);
+			return true;
+		}
+	};
+}
+
+export VMInstruction MakeOutInstruction(initializer_list<uint8_t> opcode)
+{
+	return { "OUT", vector<uint8_t>{opcode}, {},
+		[&](const VMInstruction& self, VM& vm, size_t memory_index, const vector<size_t>& operand_values) -> bool
+		{
+			if (vm.RegisterCount() < 2) return false;
+
+			const auto dst_index = vm.Register(0);
+			const auto value = vm.Register(1);
+
+			auto dst_vm = vm.NetworkVM(dst_index);
+			if (!dst_vm || !(*dst_vm)->IncomingData(vm.IndexInNetwork(), value))
+				vm.FlagZero(true);
+			else
+				vm.FlagZero(false);
+			return true;
+		}
+	};
+}
+
+export VMInstruction MakeInInstruction(initializer_list<uint8_t> opcode)
+{
+	return { "IN", vector<uint8_t>{opcode}, {},
+		[&](const VMInstruction& self, VM& vm, size_t memory_index, const vector<size_t>& operand_values) -> bool
+		{
+			if (vm.RegisterCount() < 1) return false;
+
+			const auto src_index = vm.Register(0);
+			auto value = vm.IncomingData(vm.IndexInNetwork());
+			if (!value)
+				vm.FlagZero(true);
+			else
+			{
+				vm.FlagZero(false);
+				vm.Register(0, *value);
+				vm.IncomingData(vm.IndexInNetwork(), nullopt, true);
+			}
+
 			return true;
 		}
 	};

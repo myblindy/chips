@@ -15,16 +15,18 @@ export struct PuzzleInstance;
 
 export struct Puzzle
 {
-	using TCheck = function<bool(PuzzleInstance &puzzle_instance)>;
+	using TCheck = function<bool(PuzzleInstance& puzzle_instance)>;
 
-	function<PuzzleInstance()> make;
+	function<shared_ptr<PuzzleInstance>() > make;
+	string name;
 	Element description_element;
 
 	vector<TCheck> checks;
 	vector<VM::TMakeNetwork> internal_make_networks;
 
 	Puzzle(const vector<VM::TMakeNetwork>& make_networks,
-		const string& description_markup, const vector<TCheck>& checks);
+		const string& name_markup, const string& description_markup,
+		const vector<TCheck>& checks);
 
 	Element BuildMarkupElement(const std::string& description_markup)
 	{
@@ -90,8 +92,22 @@ export struct PuzzleInstance
 			});
 	}
 
-	shared_ptr<VM> VM(size_t index) { return vms[index]; }
+	shared_ptr<::VM> VM(size_t index) { return vms[index]; }
+
+	shared_ptr<::VM> VM(TNetworkIndex network_index, TIndexInNetwork index_in_network)
+	{
+		auto result = vms
+			| ranges::views::filter([=](auto&& vm) { return vm->NetworkIndex() == network_index && vm->IndexInNetwork() == index_in_network; });
+		return *begin(result);
+	}
+
 	vector<shared_ptr<::VM>>& VMs() { return vms; }
+	vector<shared_ptr<::VM>> VMs(TNetworkIndex network_index)
+	{
+		return vms
+			| ranges::views::filter([=](auto&& vm) { return vm->NetworkIndex() == network_index; })
+			| ranges::to<vector<shared_ptr<::VM>>>();
+	}
 
 	VMState State() const { return vms[0]->State(); }
 
@@ -132,7 +148,7 @@ private:
 	int check_index{};
 	vector<shared_ptr<::VM>> vms;
 
-	bool RunChecks() 
+	bool RunChecks()
 	{
 		if (check_index < puzzle.checks.size() && puzzle.checks[check_index](*this))
 			++check_index;
@@ -141,7 +157,8 @@ private:
 };
 
 inline Puzzle::Puzzle(const vector<VM::TMakeNetwork>& make_networks,
-	const string& description_markup, const vector<TCheck>& checks)
+	const string& name, const string& description_markup,
+	const vector<TCheck>& checks) : name(name)
 {
 	description_element = BuildMarkupElement(description_markup);
 
@@ -174,6 +191,11 @@ inline Puzzle::Puzzle(const vector<VM::TMakeNetwork>& make_networks,
 				| ranges::views::join
 				| ranges::to<vector<shared_ptr<VM>>>();
 
-			return PuzzleInstance(*this, vms);
+			for (auto&& vm : vms)
+				for (auto&& vm2 : vms)
+					if (vm != vm2)
+						vm->AddNetworkedVM(vm2->NetworkIndex(), vm2->IndexInNetwork(), vm2);
+
+			return make_shared<PuzzleInstance>(*this, vms);
 		};
 }
