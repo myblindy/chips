@@ -71,12 +71,6 @@ private:
 
 	bool ExecuteNextInstruction();
 
-	vector<function<void(const VM&)>> dirty_callbacks;
-	void TriggerDirtyCallbacks() const { for (auto&& callback : dirty_callbacks) callback(*this); }
-
-	vector<function<void(const VM&)>> success_callbacks;
-	void TriggerSuccessCallbacks() const { for (auto&& callback : success_callbacks) callback(*this); }
-
 public:
 	VM(int registers, size_t memory_size, initializer_list<const VMInstruction> instructions)
 		: registers(registers), memory(memory_size), saved_memory(memory_size)
@@ -86,17 +80,17 @@ public:
 	}
 
 	auto Name() const { return name; }
-	void Name(const string_view value) { name = value; TriggerDirtyCallbacks(); }
+	void Name(const string_view value) { name = value; VMEventQueue.enqueue(VMEventType::Dirty, this); }
 
 	auto NetworkIndex() const { return network_index; }
-	void NetworkIndex(uint8_t value) { network_index = value; TriggerDirtyCallbacks(); }
+	void NetworkIndex(uint8_t value) { network_index = value; VMEventQueue.enqueue(VMEventType::Dirty, this); }
 
 	auto IndexInNetwork() const { return index_in_network; }
-	void IndexInNetwork(uint8_t value) { index_in_network = value; TriggerDirtyCallbacks(); }
+	void IndexInNetwork(uint8_t value) { index_in_network = value; VMEventQueue.enqueue(VMEventType::Dirty, this); }
 
 	string ErrorMessage() const { return error_message; }
 
-	void Memory(size_t index, const TMemory value) { memory[index] = value; TriggerDirtyCallbacks(); }
+	void Memory(size_t index, const TMemory value) { memory[index] = value; VMEventQueue.enqueue(VMEventType::Dirty, this); }
 
 	auto Memory() { return span{ memory }; }
 	const auto Memory(size_t index) const { return memory[index]; }
@@ -105,7 +99,7 @@ public:
 	const auto MemorySize() const { return memory.size(); }
 
 	const auto Register(int index) const { return registers[index]; }
-	void Register(int index, const TRegister value) { registers[index] = value; TriggerDirtyCallbacks(); }
+	void Register(int index, const TRegister value) { registers[index] = value; VMEventQueue.enqueue(VMEventType::Dirty, this); }
 
 	auto RegisterName(int index) const { return format("R{}", index); }
 
@@ -114,7 +108,7 @@ public:
 	const VMState State() const { return state; }
 
 	const auto IP() const { return ip; }
-	void IP(const TRegister value) { ip = value; TriggerDirtyCallbacks(); }
+	void IP(const TRegister value) { ip = value; VMEventQueue.enqueue(VMEventType::Dirty, this); }
 
 	void Run();
 	void Step();
@@ -122,9 +116,6 @@ public:
 	void Stop();
 
 	optional<string> DecodeInstruction(size_t memory_index) const;
-
-	void OnDirty(function<void(const VM&)> callback) { dirty_callbacks.push_back(callback); }
-	void OnSuccess(function<void(const VM&)> callback) { success_callbacks.push_back(callback); }
 };
 
 inline size_t VM::IndexFromOpcode(const vector<uint8_t>& opcode) const
@@ -199,12 +190,15 @@ inline bool VM::ExecuteNextInstruction()
 	const auto ip = static_cast<size_t>(this->ip);
 	if (ip >= memory.size())
 		ERROR_RETURN(format("IP ({:#04x}) is out of bounds ({:#04x}).", ip, memory.size()));
+
 	auto it = instructions.find((size_t)Memory(ip));
 	if (it == instructions.end())
 		ERROR_RETURN("Invalid instruction opcode.");
+
 	const auto& instruction = it->second;
 	if (!instruction.Execute(*this, ip))
 		ERROR_RETURN("Internal instruction error.");
+	VMEventQueue.enqueue(VMEventType::InstructionExecuted, this);
 
 	this->ip += static_cast<TRegister>(instruction.OpcodeLength());
 	return true;

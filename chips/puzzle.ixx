@@ -80,6 +80,14 @@ export struct PuzzleInstance
 	PuzzleInstance(Puzzle& puzzle, const vector<shared_ptr<VM>>& vms)
 		: puzzle(puzzle), vms(vms)
 	{
+		VMEventQueue.appendListener(VMEventType::InstructionExecuted, [&](::VM* vm)
+			{
+				if (RunChecks())
+				{
+					Stop();
+					PuzzleEventQueue.enqueue(PuzzleEventType::Success, this);
+				}
+			});
 	}
 
 	shared_ptr<VM> VM(size_t index) { return vms[index]; }
@@ -119,22 +127,10 @@ export struct PuzzleInstance
 			vm->Stop();
 	}
 
-	void OnSuccess(function<void(PuzzleInstance&)> callback)
-	{
-		success_callbacks.push_back(callback);
-	}
-
 private:
 	Puzzle& puzzle;
 	int check_index{};
 	vector<shared_ptr<::VM>> vms;
-
-	vector<function<void(PuzzleInstance&)>> success_callbacks;
-	void TriggerSuccessCallbacks()
-	{
-		for (auto& callback : success_callbacks)
-			callback(*this);
-	}
 
 	bool RunChecks() 
 	{

@@ -13,9 +13,6 @@ using namespace ftxui;
 
 static Component MakeVmContainer(shared_ptr<VM> vm, bool& success, ScreenInteractive& screen)
 {
-	vm->OnSuccess([&](const VM&) { success = true; });
-	vm->OnDirty([&](const VM&) { screen.PostEvent(Event::Custom); });
-
 	auto hex_editor = HexEditor(vm->Memory(), [&] { return vm->State() == VMState::Edit ? nullopt : make_optional(vm->IP()); },
 		HexEditorOption::BytesPerLine(8));
 	auto memory_details_view = MemoryDetailsView(vm, hex_editor, MemoryDetailsViewOption::Default());
@@ -109,7 +106,16 @@ int main()
 
 	shell |= Modal(success_modal_window, &success);
 
-	screen.Loop(shell);
+	VMEventQueue.appendListener(VMEventType::Dirty, [&](VM*) { screen.PostEvent(Event::Custom); });
+	PuzzleEventQueue.appendListener(PuzzleEventType::Success, [&](PuzzleInstance*) { success = true; });
+
+	Loop loop(&screen, shell);
+	while (!loop.HasQuitted())
+	{
+		loop.RunOnce();
+		VMEventQueue.process();
+		PuzzleEventQueue.process();
+	}
 
 	return 0;
 }

@@ -1,6 +1,7 @@
 {
   "dependencies": [
     "ftxui",
-    "sdl3"
+    "sdl3",
+    "eventpp"
   ]
 }
