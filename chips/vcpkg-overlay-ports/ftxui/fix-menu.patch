@@ -1,0 +1,340 @@
+diff --git a/include/ftxui/component/component_base.hpp b/include/ftxui/component/component_base.hpp
+index 1e3fa13..363ec87 100644
+--- a/include/ftxui/component/component_base.hpp
++++ b/include/ftxui/component/component_base.hpp
+@@ -29,19 +29,22 @@ using Components = std::vector<Component>;
+ /// @ingroup component
+ class ComponentBase {
+  public:
+-  // virtual Destructor.
++  explicit ComponentBase(Components children)
++      : children_(std::move(children)) {}
+   virtual ~ComponentBase();
+-
+   ComponentBase() = default;
+ 
+-  // A component is not copiable.
++  // A component is not copyable/movable.
+   ComponentBase(const ComponentBase&) = delete;
+-  void operator=(const ComponentBase&) = delete;
++  ComponentBase(ComponentBase&&) = delete;
++  ComponentBase& operator=(const ComponentBase&) = delete;
++  ComponentBase& operator=(ComponentBase&&) = delete;
+ 
+   // Component hierarchy:
+   ComponentBase* Parent() const;
+   Component& ChildAt(size_t i);
+   size_t ChildCount() const;
++  int Index() const;
+   void Add(Component children);
+   void Detach();
+   void DetachAllChildren();
+@@ -95,4 +98,4 @@ class ComponentBase {
+ 
+ }  // namespace ftxui
+ 
+-#endif /* end of include guard: FTXUI_COMPONENT_BASE_HPP */
++#endif /* end of include guard: FTXUI_COMPONENT_BASE_HPP */
+\ No newline at end of file
+diff --git a/include/ftxui/component/component_options.hpp b/include/ftxui/component/component_options.hpp
+index b401b6d..9b92706 100644
+--- a/include/ftxui/component/component_options.hpp
++++ b/include/ftxui/component/component_options.hpp
+@@ -10,7 +10,6 @@
+ #include <ftxui/dom/elements.hpp>  // for Element, separator
+ #include <ftxui/util/ref.hpp>      // for Ref, ConstRef, StringRef
+ #include <functional>              // for function
+-#include <optional>                // for optional
+ #include <string>                  // for string
+ 
+ #include "ftxui/component/component_base.hpp"  // for Component
+@@ -22,10 +21,11 @@ namespace ftxui {
+ /// |Radiobox::transform|, |MenuEntryOption::transform|,
+ /// |MenuOption::transform|.
+ struct EntryState {
+-  std::string label;  /// < The label to display.
+-  bool state;         /// < The state of the button/checkbox/radiobox
+-  bool active;        /// < Whether the entry is the active one.
+-  bool focused;       /// < Whether the entry is one focused by the user.
++  std::string label;  ///< The label to display.
++  bool state;         ///< The state of the button/checkbox/radiobox
++  bool active;        ///< Whether the entry is the active one.
++  bool focused;       ///< Whether the entry is one focused by the user.
++  int index;          ///< Index of the entry when applicable or -1.
+ };
+ 
+ struct UnderlineOption {
+@@ -151,10 +151,10 @@ struct CheckboxOption {
+ /// @brief Used to define style for the Input component.
+ struct InputState {
+   Element element;
+-  bool hovered;         /// < Whether the input is hovered by the mouse.
+-  bool focused;         /// < Whether the input is focused by the user.
+-  bool is_placeholder;  /// < Whether the input is empty and displaying the
+-                        /// < placeholder.
++  bool hovered;         ///< Whether the input is hovered by the mouse.
++  bool focused;         ///< Whether the input is focused by the user.
++  bool is_placeholder;  ///< Whether the input is empty and displaying the
++                        ///< placeholder.
+ };
+ 
+ /// @brief Option for the Input component.
+@@ -175,8 +175,9 @@ struct InputOption {
+ 
+   // Style:
+   std::function<Element(InputState)> transform;
+-  Ref<bool> password = false;  /// < Obscure the input content using '*'.
+-  Ref<bool> multiline = true;  /// < Whether the input can be multiline.
++  Ref<bool> password = false;  ///< Obscure the input content using '*'.
++  Ref<bool> multiline = true;  ///< Whether the input can be multiline.
++  Ref<bool> insert = true;     ///< Insert or overtype character mode.
+ 
+   /// Called when the content changes.
+   std::function<void()> on_change = [] {};
+@@ -227,41 +228,57 @@ struct SliderOption {
+   Direction direction = Direction::Right;
+   Color color_active = Color::White;
+   Color color_inactive = Color::GrayDark;
++  std::function<void()> on_change;  ///> Called when `value` is updated.
+ };
+ 
+ // Parameter pack used by `WindowOptions::render`.
+ struct WindowRenderState {
+-  Element inner;             /// < The element wrapped inside this window.
+-  const std::string& title;  /// < The title of the window.
+-  bool active = false;       /// < Whether the window is the active one.
+-  bool drag = false;         /// < Whether the window is being dragged.
+-  bool resize = false;       /// < Whether the window is being resized.
+-  bool hover_left = false;   /// < Whether the resizeable left side is hovered.
+-  bool hover_right = false;  /// < Whether the resizeable right side is hovered.
+-  bool hover_top = false;    /// < Whether the resizeable top side is hovered.
+-  bool hover_down = false;   /// < Whether the resizeable down side is hovered.
++  Element inner;             ///< The element wrapped inside this window.
++  const std::string& title;  ///< The title of the window.
++  bool active = false;       ///< Whether the window is the active one.
++  bool drag = false;         ///< Whether the window is being dragged.
++  bool resize = false;       ///< Whether the window is being resized.
++  bool hover_left = false;   ///< Whether the resizeable left side is hovered.
++  bool hover_right = false;  ///< Whether the resizeable right side is hovered.
++  bool hover_top = false;    ///< Whether the resizeable top side is hovered.
++  bool hover_down = false;   ///< Whether the resizeable down side is hovered.
+ };
+ 
+ // @brief Option for the `Window` component.
+ // @ingroup component
+ struct WindowOptions {
+-  Component inner;            /// < The component wrapped by this window.
+-  ConstStringRef title = "";  /// < The title displayed by this window.
++  Component inner;            ///< The component wrapped by this window.
++  ConstStringRef title = "";  ///< The title displayed by this window.
+ 
+-  Ref<int> left = 0;     /// < The left side position of the window.
+-  Ref<int> top = 0;      /// < The top side position of the window.
+-  Ref<int> width = 20;   /// < The width of the window.
+-  Ref<int> height = 10;  /// < The height of the window.
++  Ref<int> left = 0;     ///< The left side position of the window.
++  Ref<int> top = 0;      ///< The top side position of the window.
++  Ref<int> width = 20;   ///< The width of the window.
++  Ref<int> height = 10;  ///< The height of the window.
+ 
+-  Ref<bool> resize_left = true;   /// < Can the left side be resized?
+-  Ref<bool> resize_right = true;  /// < Can the right side be resized?
+-  Ref<bool> resize_top = true;    /// < Can the top side be resized?
+-  Ref<bool> resize_down = true;   /// < Can the down side be resized?
++  Ref<bool> resize_left = true;   ///< Can the left side be resized?
++  Ref<bool> resize_right = true;  ///< Can the right side be resized?
++  Ref<bool> resize_top = true;    ///< Can the top side be resized?
++  Ref<bool> resize_down = true;   ///< Can the down side be resized?
+ 
+   /// An optional function to customize how the window looks like:
+   std::function<Element(const WindowRenderState&)> render;
+ };
+ 
++/// @brief Option for the Dropdown component.
++/// @ingroup component
++/// A dropdown menu is a checkbox opening/closing a radiobox.
++struct DropdownOption {
++  /// Whether the dropdown is open or closed:
++  Ref<bool> open = false;
++  // The options for the checkbox:
++  CheckboxOption checkbox;
++  // The options for the radiobox:
++  RadioboxOption radiobox;
++  // The transformation function:
++  std::function<Element(bool open, Element checkbox, Element radiobox)>
++      transform;
++};
++
+ }  // namespace ftxui
+ 
+-#endif /* end of include guard: FTXUI_COMPONENT_COMPONENT_OPTIONS_HPP */
++#endif /* end of include guard: FTXUI_COMPONENT_COMPONENT_OPTIONS_HPP */
+\ No newline at end of file
+diff --git a/src/ftxui/component/component.cpp b/src/ftxui/component/component.cpp
+index 47d8825..97f38f5 100644
+--- a/src/ftxui/component/component.cpp
++++ b/src/ftxui/component/component.cpp
+@@ -5,6 +5,7 @@
+ #include <cassert>    // for assert
+ #include <cstddef>    // for size_t
+ #include <iterator>   // for begin, end
++#include <memory>     // for unique_ptr, make_unique
+ #include <utility>    // for move
+ #include <vector>     // for vector, __alloc_traits<>::value_type
+ 
+@@ -50,6 +51,22 @@ size_t ComponentBase::ChildCount() const {
+   return children_.size();
+ }
+ 
++/// @brief Return index of the component in its parent. -1 if no parent.
++/// @ingroup component
++int ComponentBase::Index() const {
++  if (parent_ == nullptr) {
++    return -1;
++  }
++  int index = 0;
++  for (const Component& child : parent_->children_) {
++    if (child.get() == this) {
++      return index;
++    }
++    index++;
++  }
++  return -1;  // Not reached.
++}
++
+ /// @brief Add a child.
+ /// @@param child The child to be attached.
+ /// @ingroup component
+@@ -199,4 +216,4 @@ CapturedMouse ComponentBase::CaptureMouse(const Event& event) {  // NOLINT
+   return std::make_unique<CaptureMouseImpl>();
+ }
+ 
+-}  // namespace ftxui
++}  // namespace ftxui
+\ No newline at end of file
+diff --git a/src/ftxui/component/menu.cpp b/src/ftxui/component/menu.cpp
+index 7f6b92d..3ac2c20 100644
+--- a/src/ftxui/component/menu.cpp
++++ b/src/ftxui/component/menu.cpp
+@@ -5,13 +5,11 @@
+ #include <chrono>                   // for milliseconds
+ #include <ftxui/dom/direction.hpp>  // for Direction, Direction::Down, Direction::Left, Direction::Right, Direction::Up
+ #include <functional>               // for function
+-#include <memory>                   // for allocator_traits<>::value_type, swap
+ #include <string>                   // for operator+, string
+ #include <utility>                  // for move
+ #include <vector>                   // for vector, __alloc_traits<>::value_type
+ 
+-#include "ftxui/component/animation.hpp"       // for Animator, Linear
+-#include "ftxui/component/captured_mouse.hpp"  // for CapturedMouse
++#include "ftxui/component/animation.hpp"  // for Animator, Linear
+ #include "ftxui/component/component.hpp"  // for Make, Menu, MenuEntry, Toggle
+ #include "ftxui/component/component_base.hpp"     // for ComponentBase
+ #include "ftxui/component/component_options.hpp"  // for MenuOption, MenuEntryOption, UnderlineOption, AnimatedColorOption, AnimatedColorsOption, EntryState
+@@ -70,7 +68,7 @@ bool IsHorizontal(Direction direction) {
+ /// @ingroup component
+ class MenuBase : public ComponentBase, public MenuOption {
+  public:
+-  explicit MenuBase(MenuOption option) : MenuOption(std::move(option)) {}
++  explicit MenuBase(const MenuOption& option) : MenuOption(option) {}
+ 
+   bool IsHorizontal() { return ftxui::IsHorizontal(direction); }
+   void OnChange() {
+@@ -125,14 +123,12 @@ class MenuBase : public ComponentBase, public MenuOption {
+       const bool is_selected = (selected() == i);
+ 
+       const EntryState state = {
+-          entries[i],
+-          false,
+-          is_selected,
+-          is_focused,
++          entries[i], false, is_selected, is_focused, i,
+       };
+ 
+-      auto focus_management =
+-          is_menu_focused && (selected_focus_ == i) ? focus : nothing;
++      auto focus_management = (selected_focus_ != i) ? nothing
++                              : is_menu_focused      ? focus
++                                                     : select;
+ 
+       const Element element =
+           (entries_option.transform ? entries_option.transform
+@@ -318,8 +314,9 @@ class MenuBase : public ComponentBase, public MenuOption {
+ 
+       TakeFocus();
+       focused_entry() = i;
++
+       if (event.mouse().button == Mouse::Left &&
+-          event.mouse().motion == Mouse::Released) {
++          event.mouse().motion == Mouse::Pressed) {
+         if (selected() != i) {
+           selected() = i;
+           selected_previous_ = selected();
+@@ -511,6 +508,7 @@ class MenuBase : public ComponentBase, public MenuOption {
+ ///   entry 2
+ ///   entry 3
+ /// ```
++// NOLINTNEXTLINE
+ Component Menu(MenuOption option) {
+   return Make<MenuBase>(std::move(option));
+ }
+@@ -543,9 +541,9 @@ Component Menu(MenuOption option) {
+ ///   entry 3
+ /// ```
+ Component Menu(ConstStringListRef entries, int* selected, MenuOption option) {
+-  option.entries = entries;
++  option.entries = std::move(entries);
+   option.selected = selected;
+-  return Menu(std::move(option));
++  return Menu(option);
+ }
+ 
+ /// @brief An horizontal list of elements. The user can navigate through them.
+@@ -554,7 +552,7 @@ Component Menu(ConstStringListRef entries, int* selected, MenuOption option) {
+ /// See also |Menu|.
+ /// @ingroup component
+ Component Toggle(ConstStringListRef entries, int* selected) {
+-  return Menu(entries, selected, MenuOption::Toggle());
++  return Menu(std::move(entries), selected, MenuOption::Toggle());
+ }
+ 
+ /// @brief A specific menu entry. They can be put into a Container::Vertical to
+@@ -584,7 +582,7 @@ Component Toggle(ConstStringListRef entries, int* selected) {
+ ///   entry 3
+ /// ```
+ Component MenuEntry(ConstStringRef label, MenuEntryOption option) {
+-  option.label = label;
++  option.label = std::move(label);
+   return MenuEntry(std::move(option));
+ }
+ 
+@@ -624,11 +622,8 @@ Component MenuEntry(MenuEntryOption option) {
+       const bool focused = Focused();
+       UpdateAnimationTarget();
+ 
+-      const EntryState state = {
+-          label(),
+-          false,
+-          hovered_,
+-          focused,
++      const EntryState state{
++          label(), false, hovered_, focused, Index(),
+       };
+ 
+       const Element element =
+@@ -684,7 +679,7 @@ Component MenuEntry(MenuEntryOption option) {
+       }
+ 
+       if (event.mouse().button == Mouse::Left &&
+-          event.mouse().motion == Mouse::Released) {
++          event.mouse().motion == Mouse::Pressed) {
+         TakeFocus();
+         return true;
+       }
+@@ -712,4 +707,4 @@ Component MenuEntry(MenuEntryOption option) {
+   return Make<Impl>(std::move(option));
+ }
+ 
+-}  // namespace ftxui
++}  // namespace ftxui
+\ No newline at end of file

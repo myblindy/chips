@@ -1,0 +1,13 @@
+diff --git a/src/ftxui/component/window.cpp b/src/ftxui/component/window.cpp
+index daed7e1..5f8aebd 100644
+--- a/src/ftxui/component/window.cpp
++++ b/src/ftxui/component/window.cpp
+@@ -87,7 +87,7 @@ class ResizeDecorator : public NodeDecorator {
+ 
+ Element DefaultRenderState(const WindowRenderState& state) {
+   Element element = state.inner;
+-  if (state.active) {
++  if (!state.active) {
+     element |= dim;
+   }
+ 

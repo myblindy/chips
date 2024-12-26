@@ -50,10 +50,10 @@ static Component MakeVmContainer(shared_ptr<VM> vm, bool& success)
 	return hex_editor_window;
 }
 
-static Component MakeSuccessModal(bool& success)
+static Component MakeSuccessModal(bool& success, bool &show_puzzle_selection)
 {
 	auto sucess_modal_window_actions = Container::Horizontal({
-		Button("OK", [&] { success = false; }, ButtonOption::Animated(Color::LightGreen)),
+		Button("OK", [&] { success = false; show_puzzle_selection = true; }, ButtonOption::Animated(Color::LightGreen)),
 		});
 	auto success_modal_window = Renderer(sucess_modal_window_actions, [=] { return window(
 		text("Level completed!") | hcenter | bold,
@@ -118,6 +118,7 @@ static Component MakeShell(int& selected_vm, bool& success, shared_ptr<PuzzleIns
 			vm_tab_contents,
 			Renderer([] { return separatorHeavy(); }),
 			Container::Vertical({
+				Renderer([] { return text("Devices:") | dim; }),
 				vm_tab,
 				Renderer([] { return filler(); }),
 				}),
@@ -137,7 +138,7 @@ static Component MakeShell(int& selected_vm, bool& success, shared_ptr<PuzzleIns
 			Renderer([] { return separatorHeavy(); }),
 			});
 
-		shell |= Modal(MakeSuccessModal(success), &success);
+		shell |= Modal(MakeSuccessModal(success, show_puzzle_selection), &success);
 	}
 	else
 		shell = Renderer([] { return text(""); });
