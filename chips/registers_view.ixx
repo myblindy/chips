@@ -30,8 +30,16 @@ public:
 		Elements elements;
 		elements.reserve((vm->RegisterCount() + 1) * 3);
 
-		elements.push_back(text("IP: ") | bold | dim);
-		elements.push_back(text(format("{:#04x}", vm->IP())));
+		elements.push_back(vbox({
+			text("IP: ") | bold | dim,
+			text("F:  ") | bold | dim
+			}));
+		elements.push_back(vbox({
+			text(format("{:#04x}", vm->IP())),
+			hbox({
+				vm->FlagZero() ? text("Z") | color(Color::LightGreen) : text("Z") | dim,
+				}),
+			}));
 
 		for (int reg = 0; reg < vm->RegisterCount(); ++reg)
 		{

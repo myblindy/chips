@@ -6,6 +6,7 @@ export module memory_details_view;
 
 import std.core;
 import hex_editor;
+import puzzle;
 import vm;
 
 using namespace std;
@@ -15,6 +16,7 @@ export struct MemoryDetailsViewOption
 {
 	static MemoryDetailsViewOption Default();
 
+	shared_ptr<PuzzleInstance> puzzle;
 	shared_ptr<VM> vm;
 	shared_ptr<HexEditorBase> hex_editor;
 };
@@ -30,13 +32,13 @@ public:
 	Element Render() override final
 	{
 		auto selected_address = *hex_editor->cursor_half_byte_position / 2;
-		if (vm->State() == VMState::Edit)
+		if (puzzle->State() == PuzzleState::Edit)
 			return hbox(
 				text("SL@") | dim,
 				text(format("{:#04x}", selected_address)),
 				separatorLight(),
 				text(vm->DecodeInstruction(selected_address).value_or("???"))
-				);
+			);
 
 		return hbox(
 			vbox(
@@ -58,8 +60,10 @@ public:
 	}
 };
 
-export auto MemoryDetailsView(shared_ptr<VM> vm, shared_ptr<HexEditorBase> hex_editor, MemoryDetailsViewOption option)
+export auto MemoryDetailsView(shared_ptr<PuzzleInstance> puzzle, shared_ptr<VM> vm,
+	shared_ptr<HexEditorBase> hex_editor, MemoryDetailsViewOption option)
 {
+	option.puzzle = puzzle;
 	option.vm = vm;
 	option.hex_editor = hex_editor;
 	return Make<MemoryDetailsViewBase>(move(option));

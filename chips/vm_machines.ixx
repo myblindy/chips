@@ -9,25 +9,34 @@ import vm;
 
 using namespace std;
 
-export shared_ptr<VM> MakeTest01Machine()
+vector instruction_set_01 = {
+	MakeLoadRegister0AddressInstruction({ 0x00 }),
+	MakeLoadRegister1AddressInstruction({ 0x01 }),
+	MakeLoadRegister0Imm8Instruction({ 0x02 }),
+	MakeLoadRegister1Imm8Instruction({ 0x03 }),
+	MakeStoreRegister0AddressInstruction({ 0x04 }),
+	MakeStoreRegister1AddressInstruction({ 0x05 }),
+	MakeAddRegister0Imm8Instruction({ 0x06 }),
+	MakeAddRegister0AddressInstruction({ 0x07 }),
+	MakeSubRegister0Imm8Instruction({ 0x08 }),
+	MakeSubRegister0AddressInstruction({ 0x09 }),
+	MakeJmpImm8Instruction({ 0x0A }),
+	MakeJmpNotZeroImm8Instruction({ 0x0B }),
+	MakeOutInstruction({ 0x0C }),
+	MakeInInstruction({ 0x0D }),
+	};
+
+export auto MakeTest01Machine()
 {
-	return make_shared<VM>(2, 30,
-		vector {
-			MakeLoadRegister0AddressInstruction({ 0x00 }),
-			MakeLoadRegister1AddressInstruction({ 0x01 }),
-			MakeLoadRegister0Imm8Instruction({ 0x02 }),
-			MakeLoadRegister1Imm8Instruction({ 0x03 }),
-			MakeStoreRegister0AddressInstruction({ 0x04 }),
-			MakeStoreRegister1AddressInstruction({ 0x05 }),
-			MakeAddRegister0Imm8Instruction({ 0x06 }),
-			MakeJmpImm8Instruction({ 0x07 }),
-			MakeJmpNotZeroImm8Instruction({ 0x08 }),
-			MakeOutInstruction({ 0x09 }),
-			MakeInInstruction({ 0x0A }),
-		});
+	return make_shared<VM>(2, 30, instruction_set_01);
 }
 
-export shared_ptr<VM> MakeROM128Machine()
+export auto MakeTest02Machine()
 {
-	return make_shared<VM>(1, 128);
+	return make_shared<VM>(2, 128, instruction_set_01);
+}
+
+export auto MakeRAM128Machine()
+{
+	return make_shared<RAM>(128);
 }

@@ -136,18 +136,23 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="base_memory.cpp" />
     <ClCompile Include="hex_editor.cpp" />
     <ClCompile Include="hex_editor.ixx" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="memory_details_view.ixx" />
     <ClCompile Include="puzzle.ixx" />
     <ClCompile Include="puzzles.ixx" />
+    <ClCompile Include="ram.cpp" />
     <ClCompile Include="registers_view.ixx" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="ternary_search_tree_map.ixx" />
+    <ClCompile Include="vm.cpp" />
     <ClCompile Include="vm.ixx" />
+    <ClCompile Include="vm_instruction.cpp" />
+    <ClCompile Include="vm_instructions.cpp" />
     <ClCompile Include="vm_machines.ixx" />
   </ItemGroup>
   <ItemGroup>
