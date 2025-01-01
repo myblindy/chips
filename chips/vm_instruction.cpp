@@ -67,17 +67,17 @@ optional<string> VMInstruction::Decode(const BaseMemory* memory, size_t memory_i
 			result += ", ";
 
 		visit(overload{
-			[&](const Imm<1>&) { result += to_string(instruction_stream[0]); instruction_stream = instruction_stream.subspan(1); },
-			[&](const Imm<2>&) { result += to_string(*reinterpret_cast<const uint16_t*>(instruction_stream.subspan(0, 2).data())); instruction_stream = instruction_stream.subspan(2); },
-			[&](const Imm<4>&) { result += to_string(*reinterpret_cast<const uint32_t*>(instruction_stream.subspan(0, 4).data())); instruction_stream = instruction_stream.subspan(4); },
+			[&](const Imm<1>&) { result += format("{:#04x}", instruction_stream[0]); instruction_stream = instruction_stream.subspan(1); },
+			[&](const Imm<2>&) { result += format("{:#06x}", *reinterpret_cast<const uint16_t*>(instruction_stream.subspan(0, 2).data())); instruction_stream = instruction_stream.subspan(2); },
+			[&](const Imm<4>&) { result += format("{:#010x}", *reinterpret_cast<const uint32_t*>(instruction_stream.subspan(0, 4).data())); instruction_stream = instruction_stream.subspan(4); },
 			[&](const Addr&) {
 				auto address = *reinterpret_cast<const TAddress*>(instruction_stream.subspan(0, sizeof(TAddress)).data());
 				if (sizeof(TAddress) == 4)
-					result += format("{:#010x}", static_cast<intptr_t>(address));
+					result += format("[{:#010x}]", static_cast<intptr_t>(address));
 				else if (sizeof(TAddress) == 2)
-					result += format("{:#06x}", static_cast<intptr_t>(address));
+					result += format("[{:#06x}]", static_cast<intptr_t>(address));
 				else if (sizeof(TAddress) == 1)
-					result += format("{:#04x}", static_cast<intptr_t>(address));
+					result += format("[{:#04x}]", static_cast<intptr_t>(address));
 				else
 					assert(false);
 				instruction_stream = instruction_stream.subspan(sizeof(TAddress));
