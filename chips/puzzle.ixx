@@ -38,8 +38,6 @@ export struct Puzzle
 	Puzzle(const vector<TMakeNetwork>& make_networks,
 		const string& name_markup, const string& description_markup,
 		const TSetup setup, const vector<TCheck>& checks);
-
-	Element BuildMarkupElement(const std::string& description_markup);
 };
 
 export struct PuzzleInstance
@@ -138,54 +136,6 @@ inline Puzzle::Puzzle(const vector<TMakeNetwork>& make_networks,
 
 			return make_shared<PuzzleInstance>(*this, vms);
 		};
-}
-
-inline Element Puzzle::BuildMarkupElement(const std::string& description_markup)
-{
-	Elements vbox_elements;
-	Elements hbox_elements;
-
-	string entry;
-	bool entry_highlight = false;
-
-	auto add_entry = [&](bool new_line)
-		{
-			if (entry.size() > 0)
-			{
-				auto element = text(entry);
-				if (entry_highlight)
-					element = element | color(Color::Aquamarine1);
-
-				hbox_elements.push_back(element);
-
-				if (new_line)
-				{
-					vbox_elements.push_back(hbox(hbox_elements));
-					hbox_elements.clear();
-				}
-
-				entry.clear();
-			}
-		};
-
-	for (auto c : description_markup)
-		if (c == '`')
-		{
-			add_entry(false);
-			entry_highlight = !entry_highlight;
-		}
-		else if (c == '\n')
-		{
-			add_entry(true);
-			entry.clear();
-		}
-		else
-		{
-			entry += c;
-		}
-	add_entry(true);
-
-	return vbox(vbox_elements);
 }
 
 inline PuzzleInstance::PuzzleInstance(Puzzle& puzzle, const vector<shared_ptr<BaseMemory>>& vms)

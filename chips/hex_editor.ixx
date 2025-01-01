@@ -136,7 +136,7 @@ public:
 			vbox(move(line_number_elements)) | yflex,
 			separator(),
 			vbox(move(elements)) | reflect(box_) | flex,
-			}) | frame | flex;
+			}) | frame ;
 
 		auto transform_func = transform ? transform : HexEditorOption::Default().transform;
 		return transform_func({ move(element), is_focused });

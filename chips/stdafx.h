@@ -11,7 +11,8 @@ template<class... Ts> struct overload : Ts... { using Ts::operator()...; };
 #include "ftxui/component/screen_interactive.hpp"  
 #include "ftxui/dom/elements.hpp"  
 #include "ftxui/screen/color.hpp"  
-#include "ftxui/component/loop.hpp"       
+#include "ftxui/component/loop.hpp"      
+#include "scroller.h"
 
 #include <SDL3/SDL_timer.h>
 
@@ -19,6 +20,10 @@ template<class... Ts> struct overload : Ts... { using Ts::operator()...; };
 
 #include <variant>
 #include <optional>
+
+void ResizeConsoleWindow(int width, int height);
+
+ftxui::Element BuildMarkupElement(const std::string& description_markup);
 
 class not_implemented : public std::logic_error
 {

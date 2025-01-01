@@ -7,6 +7,7 @@ export module vm;
 import std;
 
 using namespace std;
+using namespace ftxui;
 
 export using TMemory = uint8_t;
 export using TRegister = uint8_t;
@@ -14,19 +15,23 @@ export using TAddress = uint8_t;
 
 class VM;
 
-export template<int Bytes> 
-struct Imm {};
-export struct Addr {};
-export struct Reg {};
+export template<size_t Bytes>
+struct Imm { static const size_t ByteSize = Bytes; };
+export struct Addr { static const size_t ByteSize = sizeof(TAddress); };
+export struct Reg { static const size_t ByteSize = sizeof(TRegister); };
 
 export struct VMInstruction
 {
 	using TOperand = variant<Imm<1>, Imm<2>, Imm<4>, Addr, Reg>;
 
 	const char* name;
+	Element description_element;
 	const vector<TMemory> base_opcode;
 	const vector<TOperand> operands;
 	function<bool(const VMInstruction& self, VM& vm, size_t memory_index, const vector<size_t>& operand_values)> execute_internal;
+
+	VMInstruction(const char* name, const vector<TMemory> base_opcode, const vector<TOperand> operands, const char* base_description_markup,
+		function<bool(const VMInstruction& self, VM& vm, size_t memory_index, const vector<size_t>& operand_values)> execute_internal);
 
 	size_t OpcodeLength() const;
 
@@ -110,6 +115,8 @@ public:
 	optional<string> DecodeInstruction(size_t memory_index) const;
 
 	auto RegisterName(int index) const { return format("R{}", index); }
+
+	auto &&Instructions() const { return instructions; }
 
 	virtual void SetupForRun() = 0;
 	virtual void Step() = 0;

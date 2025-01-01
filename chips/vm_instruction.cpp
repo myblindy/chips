@@ -5,19 +5,43 @@ import vm;
 
 using namespace std;
 
+VMInstruction::VMInstruction(const char* name, const vector<TMemory> base_opcode, const vector<TOperand> operands, const char* base_description_markup, function<bool(const VMInstruction& self, VM& vm, size_t memory_index, const vector<size_t>& operand_values)> execute_internal)
+	: name(name), base_opcode(base_opcode), operands(operands), execute_internal(execute_internal)
+{
+	// convert the base opcode to a string
+	string opcode_string;
+	for (auto&& opcode : base_opcode)
+		opcode_string += format("{:02x} ", opcode);
+
+	// add the instruction definition to the description markup
+	string description_markup = format("`{}{}` ", opcode_string, name);
+
+	int idx = 0;
+	for (auto&& operand : operands)
+	{
+		if (idx)
+			description_markup += ", ";
+
+		visit(overload{
+			[&](const Imm<1>&) { description_markup += format("`i8val{}`", idx); },
+			[&](const Imm<2>&) { description_markup += format("`i16val{}`", idx); },
+			[&](const Imm<4>&) { description_markup += format("`i32val{}`", idx); },
+			[&](const Addr&) { description_markup += format("`addr{}`", idx); },
+			[&](const Reg&) { description_markup += format("`reg{}`", idx); },
+			}, operand);
+
+		++idx;
+	}
+
+	description_element = BuildMarkupElement(description_markup + "\n" + base_description_markup);
+}
+
 size_t VMInstruction::OpcodeLength() const
 {
 	size_t length = base_opcode.size();
 	for (auto&& operand : operands)
-	{
-		visit(overload{
-			[&](const Imm<1>&) { length += 1; },
-			[&](const Imm<2>&) { length += 2; },
-			[&](const Imm<4>&) { length += 4; },
-			[&](const Addr&) { length += sizeof(TAddress); },
-			[&](const Reg&) { length += 1; },
-			}, operand);
-	}
+		visit([&](auto&& v) { length += remove_cvref_t<decltype(v)>::ByteSize; }, operand);
+
 	return length;
 }
 

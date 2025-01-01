@@ -33,9 +33,6 @@
     <ClCompile Include="hex_editor.cpp">
       <Filter>Components</Filter>
     </ClCompile>
-    <ClCompile Include="ternary_search_tree_map.ixx">
-      <Filter>Header Files</Filter>
-    </ClCompile>
     <ClCompile Include="vm_machines.ixx">
       <Filter>Header Files</Filter>
     </ClCompile>
@@ -69,6 +66,9 @@
     <ClCompile Include="vm.ixx">
       <Filter>VM</Filter>
     </ClCompile>
+    <ClCompile Include="scroller.cpp">
+      <Filter>Components</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="vcpkg.json" />
@@ -77,6 +77,9 @@
   <ItemGroup>
     <ClInclude Include="stdafx.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="scroller.h">
+      <Filter>Components</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

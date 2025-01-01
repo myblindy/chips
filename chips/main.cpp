@@ -15,24 +15,46 @@ using namespace ftxui;
 static Element GetVmHexEditorWindowTitle(const shared_ptr<BaseMemory>& vm)
 {
 	return hbox({
-		text("Hex Editor for "),
-		text(format("{}/{} ", vm->NetworkIndex(), vm->IndexInNetwork())) | color(Color::Aquamarine1),
-		text(vm->Name()) | color(Color::Aquamarine1),
-		text(" ("),
+		text("Hex Editor for ") | dim,
+		text(format("{}/{} {}", vm->NetworkIndex(), vm->IndexInNetwork(), vm->Name())) | color(Color::Aquamarine1),
+		text(" (") | dim,
 		text(format("{}b", vm->MemorySize())) | color(Color::Aquamarine1),
-		text(")"),
+		text(")") | dim,
 		});
 }
 
-static Component MakeVmContainer(shared_ptr<PuzzleInstance> puzzle, shared_ptr<VM> vm, bool& success)
+static Component MakeDocumentationComponent(shared_ptr<VM> vm)
+{
+	Elements vbox_elements;
+	for (auto&& [opcode, instruction] : vm->Instructions())
+	{
+		vbox_elements.push_back(instruction.description_element);
+		vbox_elements.push_back(separatorLight());
+	}
+	auto result = vbox(vbox_elements);
+
+	return Scroller(Renderer([=] { return result; }));
+}
+
+static Component MakeVmContainer(shared_ptr<PuzzleInstance> puzzle, shared_ptr<VM> vm, bool& success, bool& show_documentation)
 {
 	auto hex_editor = HexEditor(vm->Memory(), [=] { return puzzle->State() == PuzzleState::Edit ? nullopt : make_optional(vm->IP()); },
 		HexEditorOption::BytesPerLine(16));
 	auto memory_details_view = MemoryDetailsView(puzzle, vm, hex_editor, MemoryDetailsViewOption::Default());
 	auto register_view = RegistersView(vm, RegistersViewOption::Default());
 
+	auto hex_editor_window_with_documentation = Container::Horizontal({
+		hex_editor | xflex_shrink,
+		Renderer([] { return separator(); }),
+		Container::Vertical({
+			Checkbox("Documentation", &show_documentation),
+			Renderer([] { return separator(); }),
+			MakeDocumentationComponent(vm) | Maybe([&] { return show_documentation; }),
+			}) | xflex,
+		});
+
 	auto hex_editor_window_contents = Container::Vertical({
-		hex_editor | flex,
+		hex_editor_window_with_documentation | flex,
 		Renderer([] { return separator(); }) | Maybe([vm] { return !vm->ErrorMessage().empty(); }),
 		Container::Horizontal({
 			Button("x", [vm] { vm->ErrorMessage().clear(); }, ButtonOption::Ascii()),
@@ -117,7 +139,7 @@ static Component MakePuzzleSelectionModal(const vector<string>& puzzle_names, in
 }
 
 static Component MakeShell(int& selected_vm, bool& success, shared_ptr<PuzzleInstance> puzzle, int& selected_puzzle, bool& show_puzzle_selection,
-	const vector<string>& puzzle_names, vector<string>& vm_tab_names)
+	const vector<string>& puzzle_names, vector<string>& vm_tab_names, bool& show_documentation)
 {
 	Component shell;
 	if (puzzle)
@@ -127,7 +149,7 @@ static Component MakeShell(int& selected_vm, bool& success, shared_ptr<PuzzleIns
 			if (!base_memory->Editable())
 				vm_tab_components.push_back(MakeReadOnlyVmContainer(base_memory));
 			else if (auto vm = dynamic_pointer_cast<VM>(base_memory))
-				vm_tab_components.push_back(MakeVmContainer(puzzle, vm, success));
+				vm_tab_components.push_back(MakeVmContainer(puzzle, vm, success, show_documentation));
 			else
 				throw not_implemented();
 
@@ -174,13 +196,16 @@ static Component MakeShell(int& selected_vm, bool& success, shared_ptr<PuzzleIns
 
 int main()
 {
-	bool success = false;
-	shared_ptr<PuzzleInstance> puzzle;
+	//ResizeConsoleWindow(120, 90);
 
 	auto screen = ScreenInteractive::Fullscreen();
+	screen.dimx();
 
+	shared_ptr<PuzzleInstance> puzzle;
+
+	bool success = false;
+	bool show_documentation = false;
 	int selected_vm = 0;
-
 	int selected_puzzle = -1;
 	bool show_puzzle_selection = true;
 	auto puzzle_names = Puzzles | ranges::views::transform([](const auto& puzzle) { return puzzle.name; }) | ranges::to<vector<string>>();
@@ -199,14 +224,14 @@ int main()
 		show_puzzle_selection = !puzzle;
 		selected_vm = 0;
 
-		shell = MakeShell(selected_vm, success, puzzle, selected_puzzle, show_puzzle_selection, puzzle_names, vm_tab_names);
+		shell = MakeShell(selected_vm, success, puzzle, selected_puzzle, show_puzzle_selection, puzzle_names, vm_tab_names, show_documentation);
 		loop = make_unique<Loop>(&screen, shell);
 		};
 	load_puzzle();
 
 	// append listeners to global events of interest to the UI
-	GlobalEventQueue.appendListener(GlobalEventType::VMDirty, [&](const TGlobalEventSource) { screen.PostEvent(Event::Custom); });
-	GlobalEventQueue.appendListener(GlobalEventType::PuzzleSuccess, [&](const TGlobalEventSource) { success = true; screen.PostEvent(Event::Custom); });
+	GlobalEventQueue.appendListener(GlobalEventType::VMDirty, [&](const TGlobalEventSource) { screen.RequestAnimationFrame(); });
+	GlobalEventQueue.appendListener(GlobalEventType::PuzzleSuccess, [&](const TGlobalEventSource) { success = true; screen.RequestAnimationFrame(); });
 	GlobalEventQueue.appendListener(GlobalEventType::LoadNewPuzzle, [&](const TGlobalEventSource) { load_puzzle(); });
 
 	while (!loop->HasQuitted())

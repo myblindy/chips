@@ -145,10 +145,10 @@
     <ClCompile Include="puzzles.ixx" />
     <ClCompile Include="ram.cpp" />
     <ClCompile Include="registers_view.ixx" />
+    <ClCompile Include="scroller.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="ternary_search_tree_map.ixx" />
     <ClCompile Include="vm.cpp" />
     <ClCompile Include="vm.ixx" />
     <ClCompile Include="vm_instruction.cpp" />
@@ -160,6 +160,7 @@
     <None Include="vcpkg.json" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="scroller.h" />
     <ClInclude Include="stdafx.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
