@@ -26,6 +26,8 @@ optional<tuple<TMemory, optional<TRegister>>> BaseMemory::IncomingData(TIndexInN
 
 optional<string> BaseMemory::DecodeInstruction(size_t memory_index) const
 {
+	if (memory_index >= memory.size())
+		return nullopt;
 	auto it = instructions.find((size_t)Memory(memory_index));
 	if (it == instructions.end())
 		return nullopt;

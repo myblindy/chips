@@ -16,13 +16,13 @@
     <Filter Include="Components">
       <UniqueIdentifier>{56569035-afc0-449d-97fc-4e6ef1db4438}</UniqueIdentifier>
     </Filter>
+    <Filter Include="VM">
+      <UniqueIdentifier>{4819fc25-ee30-407e-be75-1c6e61db7c65}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="vm.ixx">
-      <Filter>Header Files</Filter>
     </ClCompile>
     <ClCompile Include="stdafx.cpp">
       <Filter>Source Files</Filter>
@@ -51,20 +51,23 @@
     <ClCompile Include="puzzles.ixx">
       <Filter>Header Files</Filter>
     </ClCompile>
-    <ClCompile Include="vm.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="ram.cpp">
+      <Filter>VM</Filter>
     </ClCompile>
-    <ClCompile Include="base_memory.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="vm.cpp">
+      <Filter>VM</Filter>
     </ClCompile>
     <ClCompile Include="vm_instruction.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>VM</Filter>
     </ClCompile>
     <ClCompile Include="vm_instructions.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>VM</Filter>
     </ClCompile>
-    <ClCompile Include="ram.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="base_memory.cpp">
+      <Filter>VM</Filter>
+    </ClCompile>
+    <ClCompile Include="vm.ixx">
+      <Filter>VM</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -180,3 +180,4 @@ export VMInstruction MakeJmpImm8Instruction(initializer_list<uint8_t> opcode);
 export VMInstruction MakeJmpNotZeroImm8Instruction(initializer_list<uint8_t> opcode);
 export VMInstruction MakeOutInstruction(initializer_list<uint8_t> opcode);
 export VMInstruction MakeInInstruction(initializer_list<uint8_t> opcode);
+export VMInstruction MakeTestZeroInstruction(initializer_list<uint8_t> opcode);

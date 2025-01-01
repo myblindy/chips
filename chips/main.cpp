@@ -27,7 +27,7 @@ static Element GetVmHexEditorWindowTitle(const shared_ptr<BaseMemory>& vm)
 static Component MakeVmContainer(shared_ptr<PuzzleInstance> puzzle, shared_ptr<VM> vm, bool& success)
 {
 	auto hex_editor = HexEditor(vm->Memory(), [=] { return puzzle->State() == PuzzleState::Edit ? nullopt : make_optional(vm->IP()); },
-		HexEditorOption::BytesPerLine(8));
+		HexEditorOption::BytesPerLine(16));
 	auto memory_details_view = MemoryDetailsView(puzzle, vm, hex_editor, MemoryDetailsViewOption::Default());
 	auto register_view = RegistersView(vm, RegistersViewOption::Default());
 
@@ -206,7 +206,7 @@ int main()
 
 	// append listeners to global events of interest to the UI
 	GlobalEventQueue.appendListener(GlobalEventType::VMDirty, [&](const TGlobalEventSource) { screen.PostEvent(Event::Custom); });
-	GlobalEventQueue.appendListener(GlobalEventType::PuzzleSuccess, [&](const TGlobalEventSource) { success = true; });
+	GlobalEventQueue.appendListener(GlobalEventType::PuzzleSuccess, [&](const TGlobalEventSource) { success = true; screen.PostEvent(Event::Custom); });
 	GlobalEventQueue.appendListener(GlobalEventType::LoadNewPuzzle, [&](const TGlobalEventSource) { load_puzzle(); });
 
 	while (!loop->HasQuitted())

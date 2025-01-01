@@ -61,7 +61,7 @@ VMInstruction MakeLoadRegister1Imm8Instruction(initializer_list<uint8_t> opcode)
 
 VMInstruction MakeStoreRegister0AddressInstruction(initializer_list<uint8_t> opcode)
 {
-	return { "STR", vector<uint8_t>{opcode}, {Addr{}},
+	return { "STR0", vector<uint8_t>{opcode}, {Addr{}},
 		[](const VMInstruction& self, VM& vm, size_t memory_index, const vector<size_t>& operand_values) -> bool
 		{
 			if (vm.RegisterCount() < 1) return false;
@@ -76,7 +76,7 @@ VMInstruction MakeStoreRegister0AddressInstruction(initializer_list<uint8_t> opc
 
 VMInstruction MakeStoreRegister1AddressInstruction(initializer_list<uint8_t> opcode)
 {
-	return { "STR", vector<uint8_t>{opcode}, {Addr{}},
+	return { "STR1", vector<uint8_t>{opcode}, {Addr{}},
 		[](const VMInstruction& self, VM& vm, size_t memory_index, const vector<size_t>& operand_values) -> bool
 		{
 			if (vm.RegisterCount() < 2) return false;
@@ -211,6 +211,18 @@ VMInstruction MakeInInstruction(initializer_list<uint8_t> opcode)
 				vm.IncomingData(src_index, nullopt, true);
 			}
 
+			return true;
+		}
+	};
+}
+
+VMInstruction MakeTestZeroInstruction(initializer_list<uint8_t> opcode)
+{
+	return { "TESTZ", vector<uint8_t>{opcode}, {},
+		[](const VMInstruction& self, VM& vm, size_t memory_index, const vector<size_t>& operand_values) -> bool
+		{
+			if (vm.RegisterCount() < 1) return false;
+			vm.FlagZero(vm.Register(0) == 0);
 			return true;
 		}
 	};

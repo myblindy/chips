@@ -28,16 +28,16 @@ export array Puzzles
 	Puzzle {
 		{
 			{
-				{ "CPU", MakeTest01Machine, true, {} },
+				{ "CPU", MakeTest02Machine, true, { 0x02, 0x01, 0x03, 0x00, 0x0d, 0x0b, 0x09, 0x0a, 0x04, 0x04, 0x6f, 0x01, 0x6f, 0x02, 0x01, 0x0d, 0x0b, 0x14, 0x0a, 0x0f, 0x07, 0x70, 0x04, 0x70, 0x05, 0x6f, 0x00, 0x6f, 0x08, 0x01, 0x0a, 0x09 } },
 				{ "ROM", MakeRAM128Machine, false, {} },
 			},
 		},
 		"Simple Networked Test",
-		"Read `0x00` from ROM to get the data length,\nthen sum that many bytes from ROM starting\nat `0x01` and write their sum in the CPU at `0x1D`.",
+		"Read `0x00` from ROM to get the data length,\nthen sum that many bytes from ROM starting\nat `0x01` and write their sum in the CPU at `0x70`.",
 		[](auto& puzzle_instance) {
 			auto rom = puzzle_instance.VM(1);
 
-			uniform_int_distribution<uint16_t> dist_size(1, static_cast<uint16_t>(rom->MemorySize()));
+			uniform_int_distribution<uint16_t> dist_size(12, static_cast<uint16_t>(32));
 			auto data_length = static_cast<TMemory>(dist_size(random_engine));
 			rom->Memory(0, data_length);
 
@@ -54,7 +54,7 @@ export array Puzzles
 				uint8_t sum = 0;
 				for (size_t i = 0; i < data_length; ++i)
 					sum += rom->Memory(1 + i);
-				return cpu->Memory(0x1D) == sum;
+				return cpu->Memory(0x70) == sum;
 			}
 		}
 	},

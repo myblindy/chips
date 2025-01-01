@@ -24,6 +24,7 @@ vector instruction_set_01 = {
 	MakeJmpNotZeroImm8Instruction({ 0x0B }),
 	MakeOutInstruction({ 0x0C }),
 	MakeInInstruction({ 0x0D }),
+	MakeTestZeroInstruction({ 0x0E }),
 	};
 
 export auto MakeTest01Machine()
