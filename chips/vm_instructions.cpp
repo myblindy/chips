@@ -186,7 +186,7 @@ VMInstruction MakeOutImm8Instruction(initializer_list<uint8_t> opcode)
 
 			const auto dst_index = vm.Register(0);
 			const auto address = vm.Register(1);
-			const auto value = operand_values[0];
+			const auto value = static_cast<TRegister>(operand_values[0]);
 
 			auto dst_vm = vm.NetworkVM(dst_index);
 			if (!dst_vm || !(*dst_vm)->IncomingData(vm.IndexInNetwork(), { { address, value } }))

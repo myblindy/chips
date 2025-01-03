@@ -15,7 +15,7 @@ template<class... Ts> struct overload : Ts... { using Ts::operator()...; };
 #include "ftxui/component/loop.hpp"      
 #include "scroller.h"
 
-#include <SDL3/SDL_timer.h>
+#include <SDL3/SDL.h>
 
 #include "eventpp/eventqueue.h"
 
