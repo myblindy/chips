@@ -176,17 +176,17 @@ VMInstruction MakeJmpNotZeroImm8Instruction(initializer_list<uint8_t> opcode)
 	};
 }
 
-VMInstruction MakeOutInstruction(initializer_list<uint8_t> opcode)
+VMInstruction MakeOutImm8Instruction(initializer_list<uint8_t> opcode)
 {
-	return { "OUT", vector<uint8_t>{opcode}, {Reg{}},
-		"NYI",
+	return { "OUTI8", vector<uint8_t>{opcode}, {Imm<1>{}},
+		"Send the value `i8val0` to network device at `R0` and address `R1`.\nSets the zero flag in case of error or buffer full.",
 		[](const VMInstruction& self, VM& vm, size_t memory_index, const vector<size_t>& operand_values) -> bool
 		{
 			if (vm.RegisterCount() < 2) return false;
 
-			const auto dst_index = vm.Register(static_cast<TIndexInNetwork>(operand_values[0]));
-			const auto address = vm.Register(0);
-			const auto value = vm.Register(1);
+			const auto dst_index = vm.Register(0);
+			const auto address = vm.Register(1);
+			const auto value = operand_values[0];
 
 			auto dst_vm = vm.NetworkVM(dst_index);
 			if (!dst_vm || !(*dst_vm)->IncomingData(vm.IndexInNetwork(), { { address, value } }))
@@ -238,6 +238,19 @@ VMInstruction MakeTestZeroInstruction(initializer_list<uint8_t> opcode)
 		{
 			if (vm.RegisterCount() < 1) return false;
 			vm.FlagZero(vm.Register(0) == 0);
+			return true;
+		}
+	};
+}
+
+VMInstruction MakeTestGreaterThanImm8Instruction(initializer_list<uint8_t> opcode)
+{
+	return { "TESTGT", vector<uint8_t>{opcode}, {Imm<1>{}},
+		"Sets the zero flag if `R0` is greater than `i8val0`.",
+		[](const VMInstruction& self, VM& vm, size_t memory_index, const vector<size_t>& operand_values) -> bool
+		{
+			if (vm.RegisterCount() < 1) return false;
+			vm.FlagZero(vm.Register(0) > operand_values[0]);
 			return true;
 		}
 	};

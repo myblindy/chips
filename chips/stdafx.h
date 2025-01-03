@@ -10,6 +10,7 @@ template<class... Ts> struct overload : Ts... { using Ts::operator()...; };
 #include "ftxui/component/component_options.hpp"   
 #include "ftxui/component/screen_interactive.hpp"  
 #include "ftxui/dom/elements.hpp"  
+#include "ftxui/dom/canvas.hpp"  
 #include "ftxui/screen/color.hpp"  
 #include "ftxui/component/loop.hpp"      
 #include "scroller.h"

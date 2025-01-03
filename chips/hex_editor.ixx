@@ -252,6 +252,15 @@ private:
 		return true;
 	}
 
+	bool HandleBackspace()
+	{
+		if (*cursor_half_byte_position == 0)
+			return false;
+		--(*cursor_half_byte_position);
+		HandleCharacter("0");
+		return true;
+	}
+
 	bool OnEvent(Event event) override final
 	{
 		if (event == Event::ArrowLeft)
@@ -266,6 +275,8 @@ private:
 			return HandleArrowUp();
 		if (event == Event::ArrowDown)
 			return HandleArrowDown();
+		if (event == Event::Backspace)
+			return HandleBackspace();
 		if (event.is_mouse())
 			return HandleMouse(event);
 		if (event.is_character())

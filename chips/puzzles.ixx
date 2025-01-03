@@ -9,6 +9,7 @@ import puzzle;
 import vm_machines;
 
 using namespace std;
+using namespace ftxui;
 
 static default_random_engine random_engine;
 
@@ -57,5 +58,59 @@ export array Puzzles
 				return cpu->Memory(0x70) == sum;
 			}
 		}
+	},
+	Puzzle {
+		{
+			{
+				{ "CPU", MakeTest02Machine, true, {} },
+				{ "Display", MakeDisplay4x4Machine, false, {} },
+			}
+		},
+		"Basic Display Test",
+		"Move a blue `1x1` rectangle `clockwise` around the edge\nof the display, starting at `(0,0)`.",
+		[](auto&) {},
+		ranges::views::iota(0, 16) 
+			| ranges::views::transform([](auto i) {
+				return [i](auto& puzzle_instance) {
+					const auto&& display = puzzle_instance.VM(1);
+				
+					int x0, y0;
+					if (i < 4) {
+						x0 = i;
+						y0 = 0;
+					}
+					else if (i < 8) {
+						x0 = 3;
+						y0 = i - 3;
+					}
+					else if (i < 12) {
+						x0 = 15 - i;
+						y0 = 3;
+					}
+					else {
+						x0 = 0;
+						y0 = 15 - i;
+					}
+
+					for (auto y = 0; y < 4; ++y)
+						for (auto x = 0; x < 4; ++x)
+						{
+							const auto ch = display->Memory(y * 4 * 3 + x * 3);
+							const auto fg = (Color::Palette256)display->Memory(y * 4 * 3 + x * 3 + 1);
+							const auto bg = (Color::Palette256)display->Memory(y * 4 * 3 + x * 3 + 2);
+
+							if (x == x0 && y == y0)
+							{
+								if (bg != Color::Palette16::Blue || ch != 0)
+									return false;
+							}
+							else if (bg != Color::Palette16::Black || ch != 0)
+								return false;
+						}
+
+					return true;
+				};
+			}) 
+			| ranges::to<vector<Puzzle::TCheck>>()
 	},
 };

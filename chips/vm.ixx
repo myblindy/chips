@@ -48,14 +48,14 @@ export struct VMInstruction
 export class BaseMemory
 {
 public:
-	BaseMemory(size_t memory_size)
-		: memory(memory_size), saved_memory(memory_size)
+	BaseMemory(size_t memory_size, bool interactive)
+		: memory(memory_size), saved_memory(memory_size), interactive(interactive)
 	{
 	}
 
 private:
 	string name;
-	bool editable{};
+	bool editable{}, interactive{};
 	TNetworkIndex network_index{};
 	TIndexInNetwork index_in_network{};
 
@@ -75,6 +75,8 @@ public:
 
 	auto Editable() const { return editable; }
 	void Editable(bool value) { editable = value; GlobalEventQueue.enqueue(GlobalEventType::VMDirty, this); }
+
+	auto Interactive() const { return interactive; }
 
 	auto NetworkIndex() const { return network_index; }
 	void NetworkIndex(TNetworkIndex value) { network_index = value; GlobalEventQueue.enqueue(GlobalEventType::VMDirty, this); }
@@ -116,11 +118,11 @@ public:
 
 	auto RegisterName(int index) const { return format("R{}", index); }
 
-	auto &&Instructions() const { return instructions; }
+	auto&& Instructions() const { return instructions; }
 
-	virtual void SetupForRun() = 0;
+	virtual void SetupForRun() { saved_memory = memory; }
 	virtual void Step() = 0;
-	virtual void Stop() = 0;
+	virtual void Stop() { memory = saved_memory; error_message.clear(); }
 };
 
 export class VM : public BaseMemory
@@ -135,7 +137,7 @@ export class VM : public BaseMemory
 
 public:
 	VM(int registers, size_t memory_size, const vector<VMInstruction>& instructions = {})
-		: BaseMemory(memory_size)
+		: BaseMemory(memory_size, false)
 	{
 		this->registers = vector<TRegister>(registers);
 		for (auto&& instruction : instructions)
@@ -155,7 +157,6 @@ public:
 
 	void SetupForRun() override;
 	void Step() override;
-	void Stop() override;
 };
 
 export class RAM : public BaseMemory
@@ -164,13 +165,32 @@ export class RAM : public BaseMemory
 
 public:
 	RAM(size_t memory_size)
-		: BaseMemory(memory_size)
+		: BaseMemory(memory_size, false)
 	{
 	}
 
-	void SetupForRun() override;
 	void Step() override;
-	void Stop() override;
+};
+
+export class Display : public BaseMemory
+{
+	size_t width, height;
+
+	bool ExecuteNextInstruction() override;
+
+public:
+	Display(size_t width, size_t height)
+		: BaseMemory(width* height * 3, true), width(width), height(height)
+	{
+		// set the memory to white on black
+		for (size_t i = 0; i < memory.size(); i += 3)
+			memory[i + 1] = 15;
+	}
+
+	auto Width() const { return width; }
+	auto Height() const { return height; }
+
+	void Step() override;
 };
 
 export VMInstruction MakeLoadRegister0AddressInstruction(initializer_list<uint8_t> opcode);
@@ -185,6 +205,7 @@ export VMInstruction MakeSubRegister0Imm8Instruction(initializer_list<uint8_t> o
 export VMInstruction MakeSubRegister0AddressInstruction(initializer_list<uint8_t> opcode);
 export VMInstruction MakeJmpImm8Instruction(initializer_list<uint8_t> opcode);
 export VMInstruction MakeJmpNotZeroImm8Instruction(initializer_list<uint8_t> opcode);
-export VMInstruction MakeOutInstruction(initializer_list<uint8_t> opcode);
+export VMInstruction MakeOutImm8Instruction(initializer_list<uint8_t> opcode);
 export VMInstruction MakeInInstruction(initializer_list<uint8_t> opcode);
 export VMInstruction MakeTestZeroInstruction(initializer_list<uint8_t> opcode);
+export VMInstruction MakeTestGreaterThanImm8Instruction(initializer_list<uint8_t> opcode);

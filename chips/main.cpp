@@ -6,6 +6,8 @@ import vm_machines;
 import hex_editor;
 import registers_view;
 import memory_details_view;
+import interactive_vm_component;
+import interactive_display_component;
 import puzzle;
 import puzzles;
 
@@ -82,11 +84,8 @@ static Component MakeReadOnlyVmContainer(shared_ptr<BaseMemory> vm)
 {
 	return Renderer([=] {
 		return window(GetVmHexEditorWindowTitle(vm) | hcenter | bold,
-			hbox({
-				filler(),
-				text("This device is read-only.") | dim | center,
-				filler(),
-				}));
+			text("This device is read-only.") | dim | center
+			);
 		});
 }
 
@@ -138,6 +137,31 @@ static Component MakePuzzleSelectionModal(const vector<string>& puzzle_names, in
 		});
 }
 
+static Component MakeInteractiveView(shared_ptr<PuzzleInstance> puzzle)
+{
+	auto interactive_machines = puzzle->VMs()
+		| ranges::views::filter([](const auto& base_memory) { return base_memory->Interactive() || dynamic_pointer_cast<VM>(base_memory); })
+		| ranges::to<vector<shared_ptr<BaseMemory>>>();
+
+	if (ranges::none_of(interactive_machines, [](const auto& base_memory) { return base_memory->Interactive(); }))
+		return Renderer([] { return window(text("Interactive View") | dim | hcenter | bold,
+			text("No interactive devices.") | dim | center); });
+
+	Components interactive_components;
+	for (auto& base_memory : interactive_machines)
+		if (auto vm = dynamic_pointer_cast<VM>(base_memory))
+			interactive_components.push_back(InteractiveVMComponent(vm) | borderEmpty);
+		else if (auto display = dynamic_pointer_cast<Display>(base_memory))
+			interactive_components.push_back(InteractiveDisplayComponent(display) | borderEmpty);
+		else
+			throw not_implemented();
+
+	auto container = Container::Horizontal(interactive_components);
+
+	return Renderer(container, [=] { return window(text("Interactive View") | dim | hcenter | bold,
+		container->Render() | center); });
+}
+
 static Component MakeShell(int& selected_vm, bool& success, shared_ptr<PuzzleInstance> puzzle, int& selected_puzzle, bool& show_puzzle_selection,
 	const vector<string>& puzzle_names, vector<string>& vm_tab_names, bool& show_documentation)
 {
@@ -152,12 +176,14 @@ static Component MakeShell(int& selected_vm, bool& success, shared_ptr<PuzzleIns
 				vm_tab_components.push_back(MakeVmContainer(puzzle, vm, success, show_documentation));
 			else
 				throw not_implemented();
+		vm_tab_components.push_back(MakeInteractiveView(puzzle));
 
 		auto vm_tab_contents = Container::Tab(vm_tab_components, &selected_vm) | flex;
 
 		vm_tab_names = puzzle->VMs() | ranges::views::transform([](const auto& vm) {
 			return format("{}/{} {}", vm->NetworkIndex(), vm->IndexInNetwork(), vm->Name());
 			}) | ranges::to<vector<string>>();
+		vm_tab_names.push_back("Interactive");
 		auto vm_tab = Menu(&vm_tab_names, &selected_vm);
 
 		auto main_content = Container::Horizontal({
@@ -196,8 +222,6 @@ static Component MakeShell(int& selected_vm, bool& success, shared_ptr<PuzzleIns
 
 int main()
 {
-	//ResizeConsoleWindow(120, 90);
-
 	auto screen = ScreenInteractive::Fullscreen();
 	screen.dimx();
 

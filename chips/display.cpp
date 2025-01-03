@@ -1,18 +1,16 @@
 #include "stdafx.h"
 
-import std.core;
 import vm;
 
 using namespace std;
 
-void RAM::Step()
+void Display::Step()
 {
 	ExecuteNextInstruction();
 }
 
-bool RAM::ExecuteNextInstruction()
+bool Display::ExecuteNextInstruction()
 {
-	// memories only respond to IN and OUT instructions
 	for (auto& [index, data] : incoming_data)
 		if (data)
 			if (get<1>(*data))

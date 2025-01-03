@@ -7,19 +7,13 @@ using namespace std;
 
 void VM::SetupForRun()
 {
-	saved_memory = memory;
+	BaseMemory::SetupForRun();
 	ip = 0;
 }
 
 void VM::Step()
 {
 	ExecuteNextInstruction();
-}
-
-void VM::Stop()
-{
-	memory = saved_memory;
-	error_message.clear();
 }
 
 bool VM::ExecuteNextInstruction()

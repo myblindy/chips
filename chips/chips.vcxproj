@@ -140,8 +140,11 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="base_memory.cpp" />
+    <ClCompile Include="display.cpp" />
     <ClCompile Include="hex_editor.cpp" />
     <ClCompile Include="hex_editor.ixx" />
+    <ClCompile Include="interactive_display_component.ixx" />
+    <ClCompile Include="interactive_vm_component.ixx" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="memory_details_view.ixx" />
     <ClCompile Include="puzzle.ixx" />

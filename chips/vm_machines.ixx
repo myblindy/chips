@@ -22,9 +22,10 @@ vector instruction_set_01 = {
 	MakeSubRegister0AddressInstruction({ 0x09 }),
 	MakeJmpImm8Instruction({ 0x0A }),
 	MakeJmpNotZeroImm8Instruction({ 0x0B }),
-	MakeOutInstruction({ 0x0C }),
+	MakeOutImm8Instruction({ 0x0C }),
 	MakeInInstruction({ 0x0D }),
 	MakeTestZeroInstruction({ 0x0E }),
+	MakeTestGreaterThanImm8Instruction({ 0x0F }),
 	};
 
 export auto MakeTest01Machine()
@@ -40,4 +41,9 @@ export auto MakeTest02Machine()
 export auto MakeRAM128Machine()
 {
 	return make_shared<RAM>(128);
+}
+
+export auto MakeDisplay4x4Machine()
+{
+	return make_shared<Display>(4, 4);
 }

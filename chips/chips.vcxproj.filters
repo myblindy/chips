@@ -69,6 +69,15 @@
     <ClCompile Include="scroller.cpp">
       <Filter>Components</Filter>
     </ClCompile>
+    <ClCompile Include="display.cpp">
+      <Filter>VM</Filter>
+    </ClCompile>
+    <ClCompile Include="interactive_vm_component.ixx">
+      <Filter>Components</Filter>
+    </ClCompile>
+    <ClCompile Include="interactive_display_component.ixx">
+      <Filter>Components</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="vcpkg.json" />
