@@ -60,6 +60,9 @@ export array Puzzles
 		}
 	},
 	Puzzle {
+		// 02 01 01 7f 0c 04 0c 00 00 7f 06 03 04 7f 0f 30 
+		// 0b 00 02 02 04 7f 0a
+		// @7f 02
 		{
 			{
 				{ "CPU", MakeTest02Machine, true, {} },
