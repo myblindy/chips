@@ -105,10 +105,18 @@ public:
 
 	string ErrorMessage() const { return error_message; }
 
-	void Memory(size_t index, const TMemory value) { memory[index] = value; GlobalEventQueue.enqueue(GlobalEventType::VMDirty, this); }
+	bool Memory(size_t index, const TMemory value) 
+	{
+		if (index >= memory.size())
+			return false;
+
+		memory[index] = value;
+		GlobalEventQueue.enqueue(GlobalEventType::VMDirty, this); 
+		return true;
+	}
 
 	auto Memory() { return span{ memory }; }
-	const auto Memory(size_t index) const { return memory[index]; }
+	const auto Memory(size_t index) const { return index >= memory.size() ? 0 : memory[index]; }	// TODO fix errors here
 	const auto Memory(const pair<size_t, size_t> range) const { return span{ memory }.subspan(range.first, range.second); }
 
 	const auto MemorySize() const { return memory.size(); }

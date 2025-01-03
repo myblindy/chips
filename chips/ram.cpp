@@ -18,7 +18,8 @@ bool RAM::ExecuteNextInstruction()
 			if (get<1>(*data))
 			{
 				// write operation
-				Memory(get<0>(*data), *get<1>(*data));
+				if (!Memory(get<0>(*data), *get<1>(*data)))
+					return false;
 				incoming_data[index] = nullopt;
 			}
 			else
